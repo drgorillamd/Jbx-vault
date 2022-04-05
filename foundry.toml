@@ -2,6 +2,24 @@
 src = 'src'
 out = 'out'
 libs = ['lib']
-remappings = ['ds-test/=lib/ds-test/src/']
-
-# See more config options https://github.com/gakonst/foundry/tree/master/config
+remappings = [
+    'ds-test/=lib/ds-test/src/',
+    'forge-std/=lib/forge-std/src/',
+    'jbx/=lib/juice-contracts-v2/contracts',
+    '@openzeppelin/=lib/openzeppelin-contracts',
+    'keep3r=lib/keep3r-network-v2/solidity'
+]
+auto_detect_solc = true
+optimizer = true
+optimizer_runs = 20000
+fuzz_runs = 256
+sender = '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B'
+tx_origin = '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B'
+initial_balance = '0xffffffffffffffffffffffff'
+block_number = 14126430
+gas_limit = 9223372036854775807
+gas_price = 0
+block_base_fee_per_gas = 0
+block_coinbase = '0x0000000000000000000000000000000000000000'
+block_timestamp = 1643802347
+block_difficulty = 0

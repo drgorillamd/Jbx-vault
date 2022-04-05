@@ -1,0 +1,18 @@
+[submodule "lib/ds-test"]
+	path = lib/ds-test
+	url = https://github.com/dapphub/ds-test
+[submodule "lib/juice-contracts-v2"]
+	path = lib/juice-contracts-v2
+	url = https://github.com/jbx-protocol/juice-contracts-v2
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/brockelmore/forge-std
+[submodule "lib/aave-v3-core"]
+	path = lib/aave-v3-core
+	url = https://github.com/aave/aave-v3-core
+[submodule "lib/openzeppelin-contracts"]
+	path = lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "lib/keep3r-network-v2"]
+	path = lib/keep3r-network-v2
+	url = https://github.com/keep3r-network/keep3r-network-v2
