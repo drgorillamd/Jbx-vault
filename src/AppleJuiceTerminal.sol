@@ -37,7 +37,7 @@ contract AppleJuiceTerminal is IJBPaymentTerminal, IJBRedemptionTerminal {
         string calldata _memo,
         bytes calldata _metadata
     ) external payable returns (uint256 beneficiaryTokenCount) {
-        // if project id != 0 -> require msg.sender is directory of project id (no individual contribution for other projects)
+        // if project id != 0 -> require msg.sender is terminal of project id (no individual contribution for other projects)
         // (directory.isTerminalOf(_projectId, msg.sender)
         // get total eth
         // amount of token to mint = _amount * totalSupply / totalEth
