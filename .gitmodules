@@ -7,12 +7,6 @@
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/brockelmore/forge-std
-[submodule "lib/aave-v3-core"]
-	path = lib/aave-v3-core
-	url = https://github.com/aave/aave-v3-core
 [submodule "lib/openzeppelin-contracts"]
 	path = lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
-[submodule "lib/keep3r-network-v2"]
-	path = lib/keep3r-network-v2
-	url = https://github.com/keep3r-network/keep3r-network-v2
