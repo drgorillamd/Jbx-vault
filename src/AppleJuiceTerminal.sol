@@ -18,7 +18,7 @@ contract AppleJuiceTerminal is IJBPaymentTerminal, IJBRedemptionTerminal {
         view
         returns (uint256)
     {
-        // for every currentStrategies
+        // for every currentStrategies:
         // overflow += token balance projectId * currentStrategies[i].netInPosition / totalSupply
     }
 
@@ -48,7 +48,7 @@ contract AppleJuiceTerminal is IJBPaymentTerminal, IJBRedemptionTerminal {
         //   _preferClaimedTokens,
         //   true
         // );
-        // spread the juice
+        // spread the juice -> for each strategy, deposit() value:_amount/currentStrategies.length
     }
 
     function addToBalanceOf(
@@ -71,5 +71,7 @@ contract AppleJuiceTerminal is IJBPaymentTerminal, IJBRedemptionTerminal {
     ) external returns (uint256 reclaimAmount) {
         // get total eth
         // eth received = _amount * totalEth / totalSupply
+        // burn
+        // reduce positions
     }
 }
