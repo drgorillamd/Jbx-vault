@@ -2,6 +2,14 @@ pragma solidity 0.8.6;
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract AppleJuiceERC20 is IERC20Metadata {
+    // move to interface:
+    error AppleJuiceERC20_TransferedAmountExceedBalance();
+    error AppleJuiceERC20_BurnedAmountExceedBalance();
+    error AppleJuiceERC20_SpentAllowanceExceedCurrentAllowance();
+
+    event TransferToProject(address, uint256, uint256);
+    //---
+
     uint8 public constant override decimals = 18;
 
     string public constant override name = "AppleJuice";
@@ -50,10 +58,9 @@ contract AppleJuiceERC20 is IERC20Metadata {
         uint256 amount
     ) internal virtual {
         uint256 fromBalance = balanceOf[from];
-        require(
-            fromBalance >= amount,
-            "ERC20: transfer amount exceeds balance"
-        );
+        if (fromBalance < amount)
+            revert AppleJuiceERC20_TransferedAmountExceedBalance();
+
         unchecked {
             balanceOf[from] = fromBalance - amount;
         }
@@ -63,8 +70,6 @@ contract AppleJuiceERC20 is IERC20Metadata {
     }
 
     function _mint(address account, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: mint to the zero address");
-
         totalSupply += amount;
         balanceOf[account] += amount;
         emit Transfer(address(0), account, amount);
@@ -73,11 +78,13 @@ contract AppleJuiceERC20 is IERC20Metadata {
     function _mintForProject(uint256 _projectId, uint256 _amount) internal {
         balanceOf[address(uint160(_projectId))] += _amount;
         totalSupply += _amount;
+        emit TransferToProject(address(0), _projectId, _amount);
     }
 
     function _burn(address account, uint256 amount) internal virtual {
         uint256 accountBalance = balanceOf[account];
-        require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+        if (accountBalance < amount)
+            revert AppleJuiceERC20_BurnedAmountExceedBalance();
         unchecked {
             balanceOf[account] = accountBalance - amount;
         }
@@ -91,9 +98,6 @@ contract AppleJuiceERC20 is IERC20Metadata {
         address spender,
         uint256 amount
     ) internal virtual {
-        require(owner != address(0), "ERC20: approve from the zero address");
-        require(spender != address(0), "ERC20: approve to the zero address");
-
         allowance[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
@@ -105,10 +109,9 @@ contract AppleJuiceERC20 is IERC20Metadata {
     ) internal virtual {
         uint256 currentAllowance = allowance[owner][spender];
         if (currentAllowance != type(uint256).max) {
-            require(
-                currentAllowance >= amount,
-                "ERC20: insufficient allowance"
-            );
+            if (currentAllowance < amount)
+                revert AppleJuiceERC20_SpentAllowanceExceedCurrentAllowance();
+
             unchecked {
                 _approve(owner, spender, currentAllowance - amount);
             }

@@ -24,7 +24,8 @@ contract AppleJuiceTerminal is
     IJBRedemptionTerminal,
     AppleJuiceERC20
 {
-    error noIndirectProjectcontribution();
+    error AppleJuiceTerminal_NoIndirectProjectcontribution();
+    error AppleJuiceTerminal_OnlyEtherAccepted();
 
     IJBController immutable jbController;
     IJBDirectory immutable jbDirectory;
@@ -40,9 +41,9 @@ contract AppleJuiceTerminal is
         override
         returns (uint256)
     {
-        // for every currentStrategies:
-        // overflow += token balance projectId * currentStrategies[i].netInPosition / totalSupply
-        // + potentially eth in this contract's balance (from closing strategies for instance)
+        return
+            (balanceOf[address(uint160(_projectId))] * totalAssets()) /
+            totalSupply;
     }
 
     function totalAssets() public view returns (uint256 _totalEthAmount) {
@@ -51,11 +52,13 @@ contract AppleJuiceTerminal is
         for (uint256 i; i < _numberOfStrategies; i++) {
             _totalEthAmount += currentStrategies[i].totalAssets();
         }
+
+        _totalEthAmount += address(this).balance;
     }
 
     function acceptsToken(address _token)
         external
-        view
+        pure
         override
         returns (bool)
     {
@@ -64,19 +67,22 @@ contract AppleJuiceTerminal is
 
     function currencyForToken(address _token)
         external
-        view
+        pure
         override
         returns (uint256)
     {
+        // Avoid the unused parameter compilation warning while not resulting in any extra bytecode
+        _token;
         return JBCurrencies.ETH;
     }
 
     function decimalsForToken(address _token)
         external
-        view
+        pure
         override
         returns (uint256)
     {
+        _token;
         return 18;
     }
 
@@ -96,21 +102,24 @@ contract AppleJuiceTerminal is
         string calldata _memo,
         bytes calldata _metadata
     ) external payable override returns (uint256 beneficiaryTokenCount) {
+        if (msg.value == 0) revert AppleJuiceTerminal_OnlyEtherAccepted();
         if (
             _projectId != 0 &&
             !jbDirectory.isTerminalOf(
                 _projectId,
                 IJBPaymentTerminal(msg.sender)
             )
-        ) revert noIndirectProjectcontribution();
+        ) revert AppleJuiceTerminal_NoIndirectProjectcontribution();
 
-        // amount of token to mint = _amount * totalSupply / totalEth
+        // amount of token to mint
         beneficiaryTokenCount = (_amount * totalSupply) / totalAssets();
 
+        // Mint for beneficiary or for a project?
         _projectId == 0
             ? _mint(_beneficiary, beneficiaryTokenCount)
             : _mintForProject(_projectId, beneficiaryTokenCount);
 
+        // Deposit in strategies
         // Alternative: group and deposit once every X hours
         uint256 _ethToDeposit = address(this).balance;
         uint256 _numberOfStrategies = currentStrategies.length;
