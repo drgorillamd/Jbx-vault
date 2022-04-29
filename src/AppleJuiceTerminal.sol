@@ -26,6 +26,7 @@ contract AppleJuiceTerminal is
 {
     error AppleJuiceTerminal_NoIndirectProjectcontribution();
     error AppleJuiceTerminal_OnlyEtherAccepted();
+    error AppleJuiceTerminal_RedemptionWrongProjectId();
 
     IJBController immutable jbController;
     IJBDirectory immutable jbDirectory;
@@ -91,6 +92,7 @@ contract AppleJuiceTerminal is
         appleJuiceId = _appleJuiceId;
     }
 
+    // CHANGE: _projectId should not be used -> _beneficiary and _metadata instead!
     function pay(
         uint256 _projectId,
         uint256 _amount,
@@ -147,6 +149,11 @@ contract AppleJuiceTerminal is
         string calldata _memo,
         bytes calldata _metadata
     ) external override returns (uint256 reclaimAmount) {
+        if (_projectId != appleJuiceId)
+            revert AppleJuiceTerminal_RedemptionWrongProjectId();
+
+        // -- todo --
+
         // get total eth
         // eth received = _amount * totalEth(strats + this contract) / totalSupply
         // burn
