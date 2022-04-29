@@ -71,8 +71,7 @@ contract AppleJuiceTerminal is
         override
         returns (uint256)
     {
-        // Avoid the unused parameter compilation warning while not resulting in any extra bytecode
-        _token;
+        _token; // Avoid the unused parameter compilation warning while not resulting in any extra bytecode
         return JBCurrencies.ETH;
     }
 
