@@ -697,7 +697,7 @@ abstract contract JBPayoutRedemptionPaymentTerminal is
     address payable _beneficiary,
     string memory _memo,
     bytes memory _metadata
-  ) private returns (uint256 reclaimAmount) {
+  ) internal virtual returns (uint256 reclaimAmount) {
     // Can't send reclaimed funds to the zero address.
     if (_beneficiary == address(0)) revert REDEEM_TO_ZERO_ADDRESS();
 
@@ -791,7 +791,7 @@ abstract contract JBPayoutRedemptionPaymentTerminal is
     uint256 _currency,
     uint256 _minReturnedTokens,
     string calldata _memo
-  ) internal returns (uint256 netLeftoverDistributionAmount) {
+  ) internal virtual returns (uint256 netLeftoverDistributionAmount) {
     // Record the distribution.
     (JBFundingCycle memory _fundingCycle, uint256 _distributedAmount) = store.recordDistributionFor(
       _projectId,
@@ -889,7 +889,7 @@ abstract contract JBPayoutRedemptionPaymentTerminal is
     @param _beneficiary The address to send the funds to.
     @param _memo A memo to pass along to the emitted event.
 
-    @return netDistributedAmount The amount of tokens that was distributed to the beneficiary, as a fixed point number with the same amount of decimals as the terminal.
+    @return netDistributedAmount The amount of tokens that was distributed to the beneficiary, as red fixed point number with the same amount of decimals as the terminal.
   */
   function _useAllowanceOf(
     uint256 _projectId,
@@ -898,7 +898,7 @@ abstract contract JBPayoutRedemptionPaymentTerminal is
     uint256 _minReturnedTokens,
     address payable _beneficiary,
     string memory _memo
-  ) internal returns (uint256 netDistributedAmount) {
+  ) internal virtual returns (uint256 netDistributedAmount) {
     // Record the use of the allowance.
     (JBFundingCycle memory _fundingCycle, uint256 _distributedAmount) = store.recordUsedAllowanceOf(
       _projectId,
@@ -968,7 +968,7 @@ abstract contract JBPayoutRedemptionPaymentTerminal is
     uint256 _group,
     uint256 _amount,
     uint256 _feeDiscount
-  ) private returns (uint256 leftoverAmount, uint256 feeEligibleDistributionAmount) {
+  ) internal returns (uint256 leftoverAmount, uint256 feeEligibleDistributionAmount) {
     // Set the leftover amount to the initial amount.
     leftoverAmount = _amount;
 
@@ -1144,7 +1144,7 @@ abstract contract JBPayoutRedemptionPaymentTerminal is
     uint256 _amount,
     address _beneficiary,
     uint256 _feeDiscount
-  ) private returns (uint256 feeAmount) {
+  ) internal returns (uint256 feeAmount) {
     feeAmount = _feeAmount(_amount, fee, _feeDiscount);
     if (_fundingCycle.shouldHoldFees()) {
       // Store the held fee.
@@ -1165,7 +1165,7 @@ abstract contract JBPayoutRedemptionPaymentTerminal is
     @param _amount The fee amount, as a floating point number with 18 decimals.
     @param _beneficiary The address to mint the platform's tokens for.
   */
-  function _processFee(uint256 _amount, address _beneficiary) private {
+  function _processFee(uint256 _amount, address _beneficiary) internal {
     // Get the terminal for the protocol project.
     IJBPaymentTerminal _terminal = directory.primaryTerminalOf(_PROTOCOL_PROJECT_ID, token);
 
@@ -1217,7 +1217,7 @@ abstract contract JBPayoutRedemptionPaymentTerminal is
     bool _preferClaimedTokens,
     string memory _memo,
     bytes memory _metadata
-  ) internal returns (uint256 beneficiaryTokenCount) {
+  ) internal virtual returns (uint256 beneficiaryTokenCount) {
     // Cant send tokens to the zero address.
     if (_beneficiary == address(0)) revert PAY_TO_ZERO_ADDRESS();
 
@@ -1303,7 +1303,7 @@ abstract contract JBPayoutRedemptionPaymentTerminal is
     uint256 _amount,
     string memory _memo,
     bytes memory _metadata
-  ) internal {
+  ) internal virtual {
     // Refund any held fees to make sure the project doesn't pay double for funds going in and out of the protocol.
     uint256 _refundedFees = _refundHeldFees(_projectId, _amount);
 
@@ -1376,7 +1376,7 @@ abstract contract JBPayoutRedemptionPaymentTerminal is
     uint256 _amount,
     uint256 _fee,
     uint256 _feeDiscount
-  ) private pure returns (uint256) {
+  ) internal pure returns (uint256) {
     // Calculate the discounted fee.
     uint256 _discountedFee = _fee -
       PRBMath.mulDiv(_fee, _feeDiscount, JBConstants.MAX_FEE_DISCOUNT);
@@ -1394,7 +1394,7 @@ abstract contract JBPayoutRedemptionPaymentTerminal is
     
     @return feeDiscount The fee discount, which should be interpreted as a percentage out MAX_FEE_DISCOUNT.
   */
-  function _currentFeeDiscount(uint256 _projectId) private view returns (uint256 feeDiscount) {
+  function _currentFeeDiscount(uint256 _projectId) internal view returns (uint256 feeDiscount) {
     // Can't take a fee if the protocol project doesn't have a terminal that accepts the token.
     if (directory.primaryTerminalOf(_PROTOCOL_PROJECT_ID, token) == IJBPaymentTerminal(address(0)))
       return JBConstants.MAX_FEE_DISCOUNT;
