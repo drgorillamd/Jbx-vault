@@ -21,7 +21,7 @@ abstract contract AJPayoutRedemptionTerminal is
     using JBFundingCycleMetadataResolver for JBFundingCycle;
 
     /**
-        @notice Registers the `_amount` as being available for `_projectId`s strategy and allows the funds to be assigned
+        @notice Adds the `_amount` of assets to the projects accounting and allows the funds to be assigned
     */
     function _assignAssets(
         uint256 _projectId,
@@ -30,7 +30,7 @@ abstract contract AJPayoutRedemptionTerminal is
     ) internal virtual;
 
     /**
-        @notice Make sure the local balance of `_projectId` is ready to withdraw the `_amount` of assets
+        @notice Removes the `_amount` of assets from the projects accounting and reserves the `_amount` in this contract
         @dev Revert if its not possible to reserve the `_amount`
     */
     function _reserveAssets(
