@@ -19,3 +19,6 @@
 [submodule "lib/prb-math"]
 	path = lib/prb-math
 	url = https://github.com/paulrberg/prb-math
+[submodule "lib/MockERC4626"]
+	path = lib/MockERC4626
+	url = https://github.com/xBA5ED/MockERC4626
