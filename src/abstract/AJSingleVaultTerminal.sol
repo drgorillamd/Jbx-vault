@@ -3,7 +3,7 @@ pragma solidity 0.8.6;
 
 import "jbx/libraries/JBOperations.sol";
 
-import "solmate/mixins/ERC4626.sol";
+import "../interfaces/IERC4626.sol";
 
 import "./AJPayoutRedemptionTerminal.sol";
 
@@ -142,7 +142,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
 
 // TODO: move structs
 struct Vault {
-    ERC4626 impl;
+    IERC4626 impl;
     VaultConfig config;
     VaultState state;
 }

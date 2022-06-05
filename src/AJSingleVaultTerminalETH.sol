@@ -30,7 +30,8 @@ contract AJSingleVaultTerminalETH is AJSingleVaultTerminal {
         IWETH _wETH,
         address _owner
     )
-        JBPayoutRedemptionPaymentTerminal(
+        // TODO: Replace with non-duplicate
+        JBPayoutRedemptionPaymentTerminalDuplicate(
             JBTokens.ETH,
             18, // 18 decimals.
             JBCurrencies.ETH,

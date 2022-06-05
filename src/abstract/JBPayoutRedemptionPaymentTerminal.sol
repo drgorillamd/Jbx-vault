@@ -36,7 +36,7 @@ import 'jbx/abstract/JBSingleTokenPaymentTerminal.sol';
   Ownable: Includes convenience functionality for checking a message sender's permissions before executing certain transactions.
   ReentrancyGuard: Contract module that helps prevent reentrant calls to a function.
 */
-abstract contract JBPayoutRedemptionPaymentTerminal is
+abstract contract JBPayoutRedemptionPaymentTerminalDuplicate is
   IJBPayoutRedemptionPaymentTerminal,
   JBSingleTokenPaymentTerminal,
   JBOperatable,

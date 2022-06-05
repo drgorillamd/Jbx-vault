@@ -15,7 +15,7 @@ It is an essential mechanism involved in fluid balance.
 */
 
 abstract contract AJPayoutRedemptionTerminal is
-    JBPayoutRedemptionPaymentTerminal
+    JBPayoutRedemptionPaymentTerminalDuplicate
 {
     // A library that parses the packed funding cycle metadata into a friendlier format.
     using JBFundingCycleMetadataResolver for JBFundingCycle;

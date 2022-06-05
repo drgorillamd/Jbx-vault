@@ -32,7 +32,8 @@ contract AJSingleVaultTerminalERC20 is AJSingleVaultTerminal {
         IJBSingleTokenPaymentTerminalStore _store,
         address _owner
     )
-        JBPayoutRedemptionPaymentTerminal(
+        // TODO: Replace with non-duplicate
+        JBPayoutRedemptionPaymentTerminalDuplicate(
             address(_token),
             _token.decimals(),
             _currency,
