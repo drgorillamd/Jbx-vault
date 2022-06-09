@@ -30,8 +30,7 @@ contract AJSingleVaultTerminalETH is AJSingleVaultTerminal {
         IWETH _wETH,
         address _owner
     )
-        // TODO: Replace with non-duplicate
-        JBPayoutRedemptionPaymentTerminalDuplicate(
+        JBPayoutRedemptionPaymentTerminal(
             JBTokens.ETH,
             18, // 18 decimals.
             JBCurrencies.ETH,
@@ -65,8 +64,26 @@ contract AJSingleVaultTerminalETH is AJSingleVaultTerminal {
             address(this),
             address(this)
         );
+        // TODO: Sanity/safety check?
         // Convert wETH back into ETH
         wETH.withdraw(_assetAmount);
+    }
+
+    function _redeem(Vault storage _vault, uint256 _sharesAmount)
+        internal
+        virtual
+        override
+        returns (uint256 assetsReceived)
+    {
+        // Withdraw exactly '_assetAmount' from vault
+        assetsReceived = _vault.impl.redeem(
+            _sharesAmount,
+            address(this),
+            address(this)
+        );
+        // TODO: Sanity/safety check?
+        // Convert wETH back into ETH
+        wETH.withdraw(_sharesAmount);
     }
 
     function _deposit(Vault storage _vault, uint256 _assetAmount)

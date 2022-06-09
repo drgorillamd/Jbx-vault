@@ -13,6 +13,47 @@ import "../enums/AJAssignReason.sol";
 abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
     mapping(uint256 => Vault) projectVault;
 
+
+    // TODO: Change required `JBOperations` permission to one specific to this action
+    function setVault(
+        uint256 _projectId,
+        IERC4626 _vault,
+        VaultConfig memory _config,
+        uint256 _minWithdraw
+    ) external requirePermission(projects.ownerOf(_projectId), _projectId, JBOperations.RECONFIGURE) {
+        Vault storage _currentVault = projectVault[_projectId];
+
+        if(address(_currentVault.impl) == address(0)){
+            // No current vault is set
+            _currentVault.impl = _vault;
+            _currentVault.config = _config;
+
+        }else if(address(_currentVault.impl) == address(_vault)){
+            // The implementation stays the same, the config changes
+             _currentVault.config = _config;
+
+        }else{
+            // Update the shares accounting before the redeem
+            uint256 _shares = _currentVault.state.shares;
+            _currentVault.state.shares = 0;
+
+            // Redeem all available shares
+            uint256 _assetsReceived = _redeem(_currentVault, _currentVault.state.shares);
+            // Verify we received enough
+            if(_assetsReceived < _minWithdraw){
+                // TODO: Custom error
+                revert();
+            }
+            
+            // Update the assets accounting with the received assets
+            _currentVault.state.localBalance += _assetsReceived;
+            // TODO: If `impl` is 0 address, `targetLocalBalancePPM` has to be 1M
+            _currentVault.impl = _vault;
+            _currentVault.config = _config;
+        }
+        // TODO: Check `_targetLocalBalanceDelta` to see if we need to deposit/withdraw
+    }
+
     /**
         @notice Adds the `_amount` of assets to the projects accounting and allows the funds to be assigned
     */
@@ -133,6 +174,11 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         internal
         virtual
         returns (uint256 sharesCost);
+
+    function _redeem(Vault storage _vault, uint256 _sharesAmount)
+        internal
+        virtual
+        returns (uint256 assetsReceived);
 
     function _deposit(Vault storage _vault, uint256 _assetAmount)
         internal

@@ -32,8 +32,7 @@ contract AJSingleVaultTerminalERC20 is AJSingleVaultTerminal {
         IJBSingleTokenPaymentTerminalStore _store,
         address _owner
     )
-        // TODO: Replace with non-duplicate
-        JBPayoutRedemptionPaymentTerminalDuplicate(
+        JBPayoutRedemptionPaymentTerminal(
             address(_token),
             _token.decimals(),
             _currency,
@@ -68,6 +67,23 @@ contract AJSingleVaultTerminalERC20 is AJSingleVaultTerminal {
         );
         // Safety check so we don't update the accounting if the withdraw failed
         require(IERC20(token).balanceOf(address(this)) == _balanceBefore + _assetAmount);
+    }
+
+    function _redeem(Vault storage _vault, uint256 _sharesAmount)
+        internal
+        virtual
+        override
+        returns (uint256 assetsReceived)
+    {
+        uint256 _balanceBefore = IERC20(token).balanceOf(address(this));
+        // Redeem exactly '_sharesAmount' from vault
+        assetsReceived = _vault.impl.redeem(
+            _sharesAmount,
+            address(this),
+            address(this)
+        );
+        // Safety check so we don't update the accounting if the withdraw failed
+        require(IERC20(token).balanceOf(address(this)) == _balanceBefore + assetsReceived);
     }
 
     function _deposit(Vault storage _vault, uint256 _assetAmount)
