@@ -14,6 +14,13 @@ contract ContractTest is TestBaseWorkflow {
     AJSingleVaultTerminalERC20 private _ajSingleVaultTerminalERC20;
     address private _ajERC20Asset;
 
+    JBController controller;
+    JBProjectMetadata _projectMetadata;
+    JBFundingCycleData _data;
+    JBFundingCycleMetadata _metadata;
+    JBGroupedSplits[] _groupedSplits; // Default empty
+    JBFundAccessConstraints[] _fundAccessConstraints; // Default empty
+
     //*********************************************************************//
     // ------------------------- internal views -------------------------- //
     //*********************************************************************//
@@ -57,12 +64,66 @@ contract ContractTest is TestBaseWorkflow {
             address(_ajSingleVaultTerminalERC20),
             "AJSingleVaultTerminalERC20"
         );
+
+        controller = jbController();
+
+        _projectMetadata = JBProjectMetadata({
+            content: "myIPFSHash",
+            domain: 1
+        });
+
+        _data = JBFundingCycleData({
+            duration: 14,
+            weight: 1000 * 10**18,
+            discountRate: 450000000,
+            ballot: IJBFundingCycleBallot(address(0))
+        });
+
+        _metadata = JBFundingCycleMetadata({
+            global: JBGlobalFundingCycleMetadata({
+                allowSetTerminals: false,
+                allowSetController: false
+            }),
+            reservedRate: 5000, //50%
+            redemptionRate: 5000, //50%
+            ballotRedemptionRate: 0,
+            pausePay: false,
+            pauseDistributions: false,
+            pauseRedeem: false,
+            pauseBurn: false,
+            allowMinting: false,
+            allowChangeToken: false,
+            allowTerminalMigration: false,
+            allowControllerMigration: false,
+            holdFees: false,
+            useTotalOverflowForRedemptions: false,
+            useDataSourceForPay: false,
+            useDataSourceForRedeem: false,
+            dataSource: address(0)
+        });
     }
 
     function testPay() public {
+        AJSingleVaultTerminalERC20 _ajERC20Terminal = ajSingleVaultTerminalERC20();
+
+        IJBPaymentTerminal[] memory _terminals = new IJBPaymentTerminal[](1);
+        _terminals[0] = _ajERC20Terminal;
         
+        // Configure project
+        uint256 projectId = controller.launchProjectFor(
+            msg.sender,
+            _projectMetadata,
+            _data,
+            _metadata,
+            block.timestamp,
+            _groupedSplits,
+            _fundAccessConstraints,
+            _terminals,
+            ""
+        );
+
         // Create the ERC4626 Vault
-        MockLinearGainsERC4626 _vault = new MockLinearGainsERC4626(
+        MockLinearGainsERC4626 vault = new MockLinearGainsERC4626(
             ajERC20Asset(),
             IMintable(ajERC20Asset()),
             "yJBX",
@@ -70,7 +131,13 @@ contract ContractTest is TestBaseWorkflow {
             1000
         );
 
-        AJSingleVaultTerminalERC20 _terminal = ajSingleVaultTerminalERC20();
+        evm.prank(msg.sender);
+        _ajERC20Terminal.setVault(
+            projectId,
+            IERC4626(address(vault)),
+            VaultConfig(100_000),
+            0
+        );
 
         assertTrue(true);
     }
