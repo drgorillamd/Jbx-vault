@@ -103,12 +103,12 @@ contract ContractTest is TestBaseWorkflow {
         });
     }
 
-    function testPay() public {
+    function testPayRedeem() public {
         AJSingleVaultTerminalERC20 _ajERC20Terminal = ajSingleVaultTerminalERC20();
 
         IJBPaymentTerminal[] memory _terminals = new IJBPaymentTerminal[](1);
         _terminals[0] = _ajERC20Terminal;
-        
+
         // Configure project
         uint256 projectId = controller.launchProjectFor(
             msg.sender,
@@ -131,6 +131,7 @@ contract ContractTest is TestBaseWorkflow {
             1000
         );
 
+        // Configure the AJ terminal to use the MockERC4626
         evm.prank(msg.sender);
         _ajERC20Terminal.setVault(
             projectId,
@@ -138,6 +139,44 @@ contract ContractTest is TestBaseWorkflow {
             VaultConfig(100_000),
             0
         );
+
+        // Mint some tokens the payer can use
+        address payer = address(0xf00);
+        uint256 payerAmount = 1 ether;
+        IMintable(ajERC20Asset()).mint(payer, payerAmount);
+
+        // Approve the tokens to be paid
+        evm.startPrank(payer);
+        IERC20(ajERC20Asset()).approve(address(_ajERC20Terminal), payerAmount);
+
+        //emit log_int(_ajERC20Terminal.targetLocalBalanceDelta(projectId, int256(payerAmount)));
+        emit log_int(int256(IERC20(_ajERC20Asset).balanceOf(address(_ajERC20Terminal))));
+
+        // Perform the pay
+        uint256 jbTokensReceived = _ajERC20Terminal.pay(
+            projectId,
+            payerAmount,
+            ajERC20Asset(),
+            payer,
+            0,
+            false,
+            '',
+            ''
+        );
+
+        emit log_int(int256(IERC20(_ajERC20Asset).balanceOf(address(_ajERC20Terminal))));
+        emit log_int(int256(_ajERC20Terminal.currentEthOverflowOf(projectId)));
+        emit log_int(_ajERC20Terminal.targetLocalBalanceDelta(projectId, 0));
+
+        // Perform the redeem
+        _ajERC20Terminal.redeemTokensOf(payer, projectId, jbTokensReceived, address(jbToken()), 0, payable(payer), '', '');
+
+        emit log_int(int256(IERC20(_ajERC20Asset).balanceOf(address(_ajERC20Terminal))));
+        emit log_int(int256(_ajERC20Terminal.currentEthOverflowOf(projectId)));
+        emit log_int(_ajERC20Terminal.targetLocalBalanceDelta(projectId, 0));
+
+        evm.stopPrank();
+        
 
         assertTrue(true);
     }

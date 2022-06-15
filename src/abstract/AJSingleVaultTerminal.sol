@@ -13,38 +13,45 @@ import "../enums/AJAssignReason.sol";
 abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
     mapping(uint256 => Vault) projectVault;
 
-
     // TODO: Change required `JBOperations` permission to one specific to this action
     function setVault(
         uint256 _projectId,
         IERC4626 _vault,
         VaultConfig memory _config,
         uint256 _minWithdraw
-    ) external requirePermission(projects.ownerOf(_projectId), _projectId, JBOperations.RECONFIGURE) {
+    )
+        external
+        requirePermission(
+            projects.ownerOf(_projectId),
+            _projectId,
+            JBOperations.RECONFIGURE
+        )
+    {
         Vault storage _currentVault = projectVault[_projectId];
 
-        if(address(_currentVault.impl) == address(0)){
+        if (address(_currentVault.impl) == address(0)) {
             // No current vault is set
             _currentVault.impl = _vault;
             _currentVault.config = _config;
-
-        }else if(address(_currentVault.impl) == address(_vault)){
+        } else if (address(_currentVault.impl) == address(_vault)) {
             // The implementation stays the same, the config changes
-             _currentVault.config = _config;
-
-        }else{
+            _currentVault.config = _config;
+        } else {
             // Update the shares accounting before the redeem
             uint256 _shares = _currentVault.state.shares;
             _currentVault.state.shares = 0;
 
             // Redeem all available shares
-            uint256 _assetsReceived = _redeem(_currentVault, _currentVault.state.shares);
+            uint256 _assetsReceived = _redeem(
+                _currentVault,
+                _currentVault.state.shares
+            );
             // Verify we received enough
-            if(_assetsReceived < _minWithdraw){
+            if (_assetsReceived < _minWithdraw) {
                 // TODO: Custom error
                 revert();
             }
-            
+
             // Update the assets accounting with the received assets
             _currentVault.state.localBalance += _assetsReceived;
             // TODO: If `impl` is 0 address, `targetLocalBalancePPM` has to be 1M
@@ -65,19 +72,21 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         Vault storage _vault = projectVault[_projectId];
 
         // We never deposit on 'Pay' or 'FeesPaid' to keep them low gas
-        if (_reason != AJAssignReason.Pay && _reason != AJAssignReason.FeesPaid) {
-
-            int256 _targetLocalBalanceDelta = _targetLocalBalanceDelta(_vault, int256(_amount));
+        if (_reason != AJAssignReason.FeesPaid) {
+            int256 _targetDelta = _targetLocalBalanceDelta(
+                _vault,
+                int256(_amount)
+            );
             // Depositing more (usually) does not increase the gas cost
             // so we use this opertunity to fill up to the target amount
-            if (_targetLocalBalanceDelta > 0) {
-                // Check if the balance is already above the target
-                uint256 _depositAmount = _amount +
-                    uint256(_targetLocalBalanceDelta);
-
-                // Update the accounting
-                _vault.state.localBalance -= uint256(_targetLocalBalanceDelta);
-                _vault.state.shares += _deposit(_vault, _depositAmount);
+            if (_targetDelta > 0) {
+                // Calculate the new local balance for the project
+                _vault.state.localBalance =
+                    _vault.state.localBalance +
+                    _amount -
+                    uint256(_targetDelta);
+                // Perform the deposit and update the vault shares
+                _vault.state.shares += _deposit(_vault, uint256(_targetDelta));
                 return;
             }
         }
@@ -108,19 +117,24 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
             _amount > _vault.state.localBalance ||
             _reason == AJReserveReason.DistributePayoutsOf
         ) {
-            uint256 _withdrawAmount = _amount;
             // Withdrawing more (usually) does not increase the gas cost
             // so we use this opertunity to fill up to the target amount
-            int256 _targetLocalBalanceDelta = _targetLocalBalanceDelta(_vault, -int256(_amount));
+            int256 _targetDelta = _targetLocalBalanceDelta(
+                _vault,
+                -int256(_amount)
+            );
             // we should always have enough shares to do this since we just checked how much we have in the vault
-            if (_targetLocalBalanceDelta < 0) {
-                _withdrawAmount += uint256(-_targetLocalBalanceDelta);
-            }
+            if (_targetDelta < 0) {
+                // Update the accounting
+                _vault.state.localBalance =
+                    _vault.state.localBalance +
+                    uint256(-_targetDelta) -
+                    _amount;
 
-            // Update the accounting
-            _vault.state.localBalance -= _withdrawAmount - _amount;
-            _vault.state.shares -= _withdraw(_vault, _withdrawAmount);
-            return;
+                // Perform the withdraw
+                _vault.state.shares -= _withdraw(_vault, _amount);
+                return;
+            }
         }
 
         // The other operations such as RedeemTokensOf, UseAllowanceOf and ProcessFees use the local balance
@@ -146,6 +160,14 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         _assets = _assetsInVault + _vault.state.localBalance;
     }
 
+    function targetLocalBalanceDelta(uint256 _projectId, int256 _amount)
+        external
+        returns (int256)
+    {
+        Vault storage _vault = projectVault[_projectId];
+        return _targetLocalBalanceDelta(_vault, _amount);
+    }
+
     function _targetLocalBalanceDelta(Vault storage _vault, int256 _change)
         internal
         returns (int256 delta)
@@ -155,10 +177,10 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         uint256 _vaultAssets = _vault.impl.convertToAssets(_vault.state.shares);
         uint256 _totalAssets = _vault.state.localBalance + _vaultAssets;
 
-        if(_change >= 0){
+        if (_change >= 0) {
             // Add change to the total balance
             _totalAssets += uint256(_change);
-        }else{
+        } else {
             // Subtract the abs of change from the total balance
             _totalAssets -= uint256(-_change);
         }
@@ -167,7 +189,10 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         uint256 _targetLocalBalance = (_totalAssets / 1_000_000) *
             _vault.config.targetLocalBalancePPM;
 
-        delta = int256(_vault.state.localBalance) - int256(_targetLocalBalance);
+        delta =
+            int256(_vault.state.localBalance) +
+            _change -
+            int256(_targetLocalBalance);
     }
 
     function _withdraw(Vault storage _vault, uint256 _assetAmount)
