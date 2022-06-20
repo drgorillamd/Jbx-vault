@@ -148,16 +148,16 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         override
         returns (uint256 _assets)
     {
-        uint256 _assetsInVault;
         Vault storage _vault = projectVault[_projectId];
+        _assets = _vault.state.localBalance;
 
         // If an vault is set, get the amount of assets that we have deposited
         if (address(_vault.impl) != address(0)) {
-            _assetsInVault = _vault.impl.previewRedeem(_vault.state.shares);
+            _assets += _vault.impl.previewRedeem(_vault.state.shares);
         }
 
         // TODO: convert to ETH
-        _assets = _assetsInVault + _vault.state.localBalance;
+        _assets += _vault.state.localBalance;
     }
 
     function targetLocalBalanceDelta(uint256 _projectId, int256 _amount)
