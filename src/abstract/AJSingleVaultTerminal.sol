@@ -4,11 +4,10 @@ pragma solidity 0.8.6;
 import "jbx/libraries/JBOperations.sol";
 
 import "../interfaces/IERC4626.sol";
-
 import "./AJPayoutRedemptionTerminal.sol";
-
 import "../enums/AJReserveReason.sol";
 import "../enums/AJAssignReason.sol";
+import "../structs/Vault.sol";
 
 abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
     mapping(uint256 => Vault) projectVault;
@@ -132,6 +131,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
                     _amount;
 
                 // Perform the withdraw
+                // This can never withdraw more than the project has since it will underflow
                 _vault.state.shares -= _withdraw(_vault, _amount);
                 return;
             }
@@ -155,9 +155,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         if (address(_vault.impl) != address(0)) {
             _assets += _vault.impl.previewRedeem(_vault.state.shares);
         }
-
-        // TODO: convert to ETH
-        _assets += _vault.state.localBalance;
+        // TODO: convert to ETH(?)
     }
 
     function targetLocalBalanceDelta(uint256 _projectId, int256 _amount)
@@ -186,8 +184,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         }
 
         // calculate the target local amount
-        uint256 _targetLocalBalance = (_totalAssets / 1_000_000) *
-            _vault.config.targetLocalBalancePPM;
+        uint256 _targetLocalBalance = _totalAssets * _vault.config.targetLocalBalancePPM / 1_000_000;
 
         delta =
             int256(_vault.state.localBalance) +
@@ -209,20 +206,4 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         internal
         virtual
         returns (uint256 sharesReceived);
-}
-
-// TODO: move structs
-struct Vault {
-    IERC4626 impl;
-    VaultConfig config;
-    VaultState state;
-}
-
-struct VaultState {
-    uint256 localBalance;
-    uint256 shares;
-}
-
-struct VaultConfig {
-    uint256 targetLocalBalancePPM;
 }

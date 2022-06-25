@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IMintable} from "MockERC4626/interfaces/IMintable.sol";
 import {MockLinearGainsERC4626} from "MockERC4626/vaults/MockLinearGainsERC4626.sol";
 import {MockERC20} from "MockERC4626/MockERC20.sol";
+import "../../interfaces/IAJSingleVaultTerminal.sol";
 
 abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
     JBController controller;
@@ -26,7 +27,7 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
     internal
     virtual
     view
-    returns (IJBPayoutRedemptionPaymentTerminal terminal);
+    returns (IAJSingleVaultTerminal terminal);
 
     function ajAsset() internal virtual view returns (address);
 
@@ -83,10 +84,10 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
 
     function testPayRedeemFuzz(uint40 _LocalBalancePPM, uint128 _payAmount) public {
         uint256 _localBalancePPMNormalised = _LocalBalancePPM / 1_000_000;
-        evm.assume(_localBalancePPMNormalised > 0 && _localBalancePPMNormalised < 1_000_000);
+        evm.assume(_localBalancePPMNormalised > 0 && _localBalancePPMNormalised <= 1_000_000);
         evm.assume(_payAmount > 0);
 
-        AJSingleVaultTerminalERC20 _ajERC20Terminal = AJSingleVaultTerminalERC20(address(AJPayoutRedemptionTerminal()));
+        IAJSingleVaultTerminal _ajSingleVaultTerminal = AJPayoutRedemptionTerminal();
 
         IJBPaymentTerminal[] memory _terminals = new IJBPaymentTerminal[](1);
         _terminals[0] = AJPayoutRedemptionTerminal();
@@ -115,7 +116,7 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
 
         // Configure the AJ terminal to use the MockERC4626
         evm.prank(msg.sender);
-        _ajERC20Terminal.setVault(
+        _ajSingleVaultTerminal.setVault(
             projectId,
             IERC4626(address(vault)),
             VaultConfig(_localBalancePPMNormalised),
@@ -125,14 +126,13 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
         // Mint some tokens the payer can use
         address payer = address(0xf00);
 
+        // Mint and Approve the tokens to be paid (if needed)
         fundWallet(payer, _payAmount);
-        beforeTransfer(payer, address(_ajERC20Terminal), _payAmount);
-
-        // Approve the tokens to be paid
-        evm.startPrank(payer);
+        uint256 _value = beforeTransfer(payer, address(_ajSingleVaultTerminal), _payAmount);
 
         // Perform the pay
-        uint256 jbTokensReceived = _ajERC20Terminal.pay(
+        evm.startPrank(payer);
+        uint256 jbTokensReceived = _ajSingleVaultTerminal.pay{value: _value}(
             projectId,
             _payAmount,
             ajAsset(),
@@ -143,12 +143,14 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
             ''
         );
 
-        assertEq(_ajERC20Terminal.targetLocalBalanceDelta(projectId, 0), 0);
-        emit log_named_uint("Local balance after deposit", ajAssetBalanceOf(address(_ajERC20Terminal)));
+        // Check that: Balance in the terminal is correct, balance in the vault is correct
+        uint256 _expectedBalanceInVault = _payAmount * _localBalancePPMNormalised / 1_000_000;
+        assertEq(ajAssetBalanceOf(address(_ajSingleVaultTerminal)), _expectedBalanceInVault);
+        assertEq(ajAssetBalanceOf(address(vault)), _payAmount - _expectedBalanceInVault);
 
         // Perform the redeem
-        _ajERC20Terminal.redeemTokensOf(payer, projectId, jbTokensReceived, address(jbToken()), 0, payable(payer), '', '');
-        emit log_named_uint("Local balance after redeem", ajAssetBalanceOf(address(_ajERC20Terminal)));
+        _ajSingleVaultTerminal.redeemTokensOf(payer, projectId, jbTokensReceived, address(jbToken()), 0, payable(payer), '', '');
+        // Check that: User balance drops, user receives correct amount of assets
 
         evm.stopPrank();
         assertTrue(true);

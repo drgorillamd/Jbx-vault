@@ -125,4 +125,11 @@ contract AJSingleVaultTerminalETH is AJSingleVaultTerminal {
   */
     // solhint-disable-next-line no-empty-blocks
     function _beforeTransferTo(address, uint256) internal override {}
+
+    /**
+    @notice
+    Used when redeeming wETH for ETH
+  */
+    // solhint-disable-next-line no-empty-blocks
+    receive() external payable {}
 }
