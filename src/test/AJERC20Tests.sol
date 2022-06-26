@@ -25,6 +25,10 @@ contract AJERC20Tests is AJPayoutRedemptionTerminalTests {
         return _ajERC20Asset;
     }
 
+    function ajAssetMinter() internal virtual override view returns (IMintable) {
+        return IMintable(_ajERC20Asset);
+    }
+
     function ajAssetBalanceOf(address addr) internal virtual override view returns (uint256){
         return MockERC20(_ajERC20Asset).balanceOf(addr);
     }

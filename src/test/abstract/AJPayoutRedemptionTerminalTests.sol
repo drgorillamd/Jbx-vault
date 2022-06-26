@@ -31,6 +31,8 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
 
     function ajAsset() internal virtual view returns (address);
 
+    function ajAssetMinter() internal virtual view returns (IMintable);
+
     function ajAssetBalanceOf(address addr) internal virtual view returns (uint256);
 
     function fundWallet(address addr, uint256 amount) internal virtual;
@@ -82,10 +84,11 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
         });
     }
 
-    function testPayRedeemFuzz(uint40 _LocalBalancePPM, uint128 _payAmount) public {
+    function testPayRedeemFuzz(uint40 _LocalBalancePPM, uint128 _payAmount, uint256 _redeemAmount, uint32 _secondsBetweenPayAndRedeem) public {
         uint256 _localBalancePPMNormalised = _LocalBalancePPM / 1_000_000;
         evm.assume(_localBalancePPMNormalised > 0 && _localBalancePPMNormalised <= 1_000_000);
         evm.assume(_payAmount > 0);
+        evm.assume(_redeemAmount > 0);
 
         IAJSingleVaultTerminal _ajSingleVaultTerminal = AJPayoutRedemptionTerminal();
 
@@ -108,7 +111,7 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
         // Create the ERC4626 Vault
         MockLinearGainsERC4626 vault = new MockLinearGainsERC4626(
             ajAsset(),
-            IMintable(ajAsset()),
+            ajAssetMinter(),
             "yJBX",
             "yJBX",
             1000
@@ -148,11 +151,29 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
         assertEq(ajAssetBalanceOf(address(_ajSingleVaultTerminal)), _expectedBalanceInVault);
         assertEq(ajAssetBalanceOf(address(vault)), _payAmount - _expectedBalanceInVault);
 
+        // Fast forward time (assumes 15 second blocks)
+        evm.warp(block.timestamp + _secondsBetweenPayAndRedeem);
+        evm.roll(block.number + _secondsBetweenPayAndRedeem / 15);
+
+        // Check the store to see what overflow we should be expecting
+        uint256 overflowExpected = jbPaymentTerminalStore().currentReclaimableOverflowOf(
+            IJBSingleTokenPaymentTerminal(address(_ajSingleVaultTerminal)),
+            projectId,
+            jbTokensReceived,
+            false
+        );
+        uint256 _userBalanceBeforeWithdraw = ajAssetBalanceOf(payer);
+
         // Perform the redeem
         _ajSingleVaultTerminal.redeemTokensOf(payer, projectId, jbTokensReceived, address(jbToken()), 0, payable(payer), '', '');
-        // Check that: User balance drops, user receives correct amount of assets
-
         evm.stopPrank();
-        assertTrue(true);
+
+        // If the initial pay amount was more than 10 wei there should be some overflow
+        if(_payAmount > 10){
+            assertGt(overflowExpected, 0);
+        }
+
+        // Check that the user received the expected amount
+        assertEq(ajAssetBalanceOf(payer), _userBalanceBeforeWithdraw + overflowExpected);
     }
 }

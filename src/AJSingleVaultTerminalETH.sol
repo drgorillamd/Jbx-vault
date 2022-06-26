@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "./abstract/AJSingleVaultTerminal.sol";
 import "./interfaces/IWETH.sol";
 
+// TODO: Add support for paying with wETH (?)
 contract AJSingleVaultTerminalETH is AJSingleVaultTerminal {
     IWETH immutable wETH;
 
@@ -58,15 +59,17 @@ contract AJSingleVaultTerminalETH is AJSingleVaultTerminal {
         override
         returns (uint256 sharesCost)
     {
+        uint256 _balanceBefore = address(this).balance;
         // Withdraw exactly '_assetAmount' from vault
         sharesCost = _vault.impl.withdraw(
             _assetAmount,
             address(this),
             address(this)
         );
-        // TODO: Sanity/safety check?
         // Convert wETH back into ETH
         wETH.withdraw(_assetAmount);
+        // Sanity check, the increase in balance has to be exactly '_assetAmount'
+        assert(_balanceBefore + _assetAmount == address(this).balance);
     }
 
     function _redeem(Vault storage _vault, uint256 _sharesAmount)
@@ -75,15 +78,17 @@ contract AJSingleVaultTerminalETH is AJSingleVaultTerminal {
         override
         returns (uint256 assetsReceived)
     {
+        uint256 _balanceBefore = address(this).balance;
         // Withdraw exactly '_assetAmount' from vault
         assetsReceived = _vault.impl.redeem(
             _sharesAmount,
             address(this),
             address(this)
         );
-        // TODO: Sanity/safety check?
         // Convert wETH back into ETH
-        wETH.withdraw(_sharesAmount);
+        wETH.withdraw(assetsReceived);
+        // Sanity check, the increase in balance has to be exactly 'assetsReceived'
+        assert(_balanceBefore + assetsReceived == address(this).balance);
     }
 
     function _deposit(Vault storage _vault, uint256 _assetAmount)

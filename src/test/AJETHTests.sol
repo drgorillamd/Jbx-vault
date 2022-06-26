@@ -5,11 +5,13 @@ import "./abstract/AJPayoutRedemptionTerminalTests.sol";
 import {MockERC20} from "MockERC4626/MockERC20.sol";
 import {WETH} from "solmate/tokens/WETH.sol";
 import "../AJSingleVaultTerminalETH.sol";
+import "./helpers/WETHMinter.sol";
 
 
 contract AJETHTests is AJPayoutRedemptionTerminalTests {
     AJSingleVaultTerminalETH private _ajSingleVaultTerminalETH;
     IWETH private _weth;
+    IMintable private _minter;
 
     //*********************************************************************//
     // ---------------------------  overrides ---------------------------- //
@@ -26,6 +28,10 @@ contract AJETHTests is AJPayoutRedemptionTerminalTests {
 
     function ajAsset() internal virtual override view returns (address) {
         return address(_weth);
+    }
+
+    function ajAssetMinter() internal virtual override view returns (IMintable) {
+        return _minter;
     }
 
     function ajAssetBalanceOf(address addr) internal virtual override view returns (uint256){
@@ -51,6 +57,9 @@ contract AJETHTests is AJPayoutRedemptionTerminalTests {
         // Create the wETH
         _weth = IWETH(payable(address(new WETH())));
         evm.label(address(_weth), "wETH");
+
+        // Create the wETH minter
+        _minter = new WETHMinter(_weth);
 
         // Deploy AJ ERC20 Terminal
         _ajSingleVaultTerminalETH = new AJSingleVaultTerminalETH(
