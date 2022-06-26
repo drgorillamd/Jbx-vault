@@ -9,6 +9,8 @@ import "../enums/AJReserveReason.sol";
 import "../enums/AJAssignReason.sol";
 import "../structs/Vault.sol";
 
+// TODO: Add reentrency protection
+// TODO: Have withdraw/deposit check the weight of 1 wei share (as to not try and deposit/withdraw 0.5 wei share)
 abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
     mapping(uint256 => Vault) projectVault;
 
@@ -71,13 +73,13 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         Vault storage _vault = projectVault[_projectId];
 
         // We never deposit on 'Pay' or 'FeesPaid' to keep them low gas
-        if (_reason != AJAssignReason.FeesPaid) {
+        if (address(_vault.impl) != address(0) && _reason != AJAssignReason.FeesPaid) {
             int256 _targetDelta = _targetLocalBalanceDelta(
                 _vault,
                 int256(_amount)
             );
             // Depositing more (usually) does not increase the gas cost
-            // so we use this opertunity to fill up to the target amount
+            // so we use this opportunity to fill up to the target amount
             if (_targetDelta > 0) {
                 // Calculate the new local balance for the project
                 _vault.state.localBalance =
@@ -106,18 +108,14 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         Vault storage _vault = projectVault[_projectId];
 
         // If no vault is set we have to use the local balance
-        if (address(_vault.impl) == address(0)) {
-            _vault.state.localBalance -= _amount;
-            return;
-        }
-
         // Either we have to withdraw from the vault, or this is a `DistributePayoutsOf` and we do housekeeping
         if (
-            _amount > _vault.state.localBalance ||
-            _reason == AJReserveReason.DistributePayoutsOf
+            address(_vault.impl) != address(0) &&
+            ( _amount > _vault.state.localBalance ||
+            _reason == AJReserveReason.DistributePayoutsOf)
         ) {
             // Withdrawing more (usually) does not increase the gas cost
-            // so we use this opertunity to fill up to the target amount
+            // so we use this opportunity to fill up to the target amount
             int256 _targetDelta = _targetLocalBalanceDelta(
                 _vault,
                 -int256(_amount)
@@ -132,7 +130,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
 
                 // Perform the withdraw
                 // This can never withdraw more than the project has since it will underflow
-                _vault.state.shares -= _withdraw(_vault, _amount);
+                _vault.state.shares -= _withdraw(_vault, uint256(-_targetDelta));
                 return;
             }
         }

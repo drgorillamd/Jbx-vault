@@ -21,7 +21,11 @@ contract AJERC20Tests is AJPayoutRedemptionTerminalTests {
         terminal = IAJSingleVaultTerminal(address(_ajSingleVaultTerminalERC20));
     }
 
-    function ajAsset() internal virtual override view returns (address) {
+    function ajTerminalAsset() internal virtual override view returns (address) {
+        return _ajERC20Asset;
+    }
+
+    function ajVaultAsset() internal virtual override view returns (address) {
         return _ajERC20Asset;
     }
 

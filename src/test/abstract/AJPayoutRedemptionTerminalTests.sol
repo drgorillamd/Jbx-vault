@@ -29,7 +29,9 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
     view
     returns (IAJSingleVaultTerminal terminal);
 
-    function ajAsset() internal virtual view returns (address);
+    function ajTerminalAsset() internal virtual view returns (address);
+
+    function ajVaultAsset() internal virtual view returns (address);
 
     function ajAssetMinter() internal virtual view returns (IMintable);
 
@@ -110,7 +112,7 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
 
         // Create the ERC4626 Vault
         MockLinearGainsERC4626 vault = new MockLinearGainsERC4626(
-            ajAsset(),
+            ajVaultAsset(),
             ajAssetMinter(),
             "yJBX",
             "yJBX",
@@ -138,7 +140,7 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
         uint256 jbTokensReceived = _ajSingleVaultTerminal.pay{value: _value}(
             projectId,
             _payAmount,
-            ajAsset(),
+            ajVaultAsset(),
             payer,
             0,
             false,
@@ -176,4 +178,177 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
         // Check that the user received the expected amount
         assertEq(ajAssetBalanceOf(payer), _userBalanceBeforeWithdraw + overflowExpected);
     }
+
+    /**
+        @notice Adapted version of 'TestERC20Terminal.testAllowanceERC20' for AJ single vaults
+    */
+    function testAllowanceFuzz(uint40 _LocalBalancePPM, uint232 _allowance, uint232 _target, uint96 _balance, uint32 _secondsBetweenActions) public {
+        uint256 _localBalancePPMNormalised = _LocalBalancePPM / 1_000_000;
+        evm.assume(_localBalancePPMNormalised > 0 && _localBalancePPMNormalised <= 1_000_000);
+
+        IAJSingleVaultTerminal _ajSingleVaultTerminal = AJPayoutRedemptionTerminal();
+
+        IJBPaymentTerminal[] memory _terminals = new IJBPaymentTerminal[](1);
+        _terminals[0] = AJPayoutRedemptionTerminal();
+
+        _fundAccessConstraints.push(
+            JBFundAccessConstraints({
+                terminal: AJPayoutRedemptionTerminal(),
+                token: ajTerminalAsset(),
+                distributionLimit: _target,
+                overflowAllowance: _allowance,
+                distributionLimitCurrency: jbLibraries().ETH(),
+                overflowAllowanceCurrency: jbLibraries().ETH()
+            })
+        );
+
+        // Configure project
+        address _projectOwner = address(420);
+        uint256 projectId = controller.launchProjectFor(
+            _projectOwner,
+            _projectMetadata,
+            _data,
+            _metadata,
+            block.timestamp,
+            _groupedSplits,
+            _fundAccessConstraints,
+            _terminals,
+            ""
+        );
+
+        // Scoped to prevent stack too deep
+        {
+            // Create the ERC4626 Vault
+            MockLinearGainsERC4626 vault = new MockLinearGainsERC4626(
+                ajVaultAsset(),
+                ajAssetMinter(),
+                "yJBX",
+                "yJBX",
+                1000
+            );
+
+            evm.prank(_projectOwner);
+            _ajSingleVaultTerminal.setVault(
+                projectId,
+                IERC4626(address(vault)),
+                VaultConfig(_localBalancePPMNormalised),
+                0
+            );
+        }
+
+        // Mint some tokens the payer can use
+        address payer = address(0xf00);
+
+        // Mint and Approve the tokens to be paid (if needed)
+        fundWallet(payer, _balance);
+        uint256 _value = beforeTransfer(payer, address(_ajSingleVaultTerminal), _balance);
+
+        // Perform the pay
+        evm.prank(payer);
+        uint256 jbTokensReceived = _ajSingleVaultTerminal.pay{value: _value}(
+            projectId,
+            _balance,
+            ajVaultAsset(),
+            payer,
+            0,
+            false,
+            '',
+            ''
+        );
+
+        // Fast forward time (assumes 15 second blocks)
+        evm.warp(block.timestamp + _secondsBetweenActions);
+        evm.roll(block.number + _secondsBetweenActions / 15);
+
+        // Discretionary use of overflow allowance by project owner (allowance = 5ETH)
+        bool willRevert;
+        if (_allowance == 0) {
+            evm.expectRevert(abi.encodeWithSignature('INADEQUATE_CONTROLLER_ALLOWANCE()'));
+            willRevert = true;
+        } else if (_target >= _balance || _allowance > (_balance - _target)) {
+            // Too much to withdraw or no overflow ?
+            evm.expectRevert(abi.encodeWithSignature('INADEQUATE_PAYMENT_TERMINAL_STORE_BALANCE()'));
+            willRevert = true;
+        }else if(_allowance > ajAssetBalanceOf(address(_ajSingleVaultTerminal))){
+            // If the amount being withdrawn as allowance is more than the terminal has in its localBalance
+            // than the terminal will withdraw from the vault
+            evm.expectEmit(true, true, true, false);
+            emit Withdraw(address(_ajSingleVaultTerminal), address(_ajSingleVaultTerminal), address(_ajSingleVaultTerminal), 0, 0);
+        }
+
+        evm.prank(_projectOwner);
+        _ajSingleVaultTerminal.useAllowanceOf(
+            projectId,
+            _allowance,
+            1, // Currency
+            address(0), //token (unused)
+            0, // Min wei out
+            payable(_projectOwner), // Beneficiary
+            'MEMO'
+        );
+
+        // Fast forward time (assumes 15 second blocks)
+        evm.warp(block.timestamp + _secondsBetweenActions);
+        evm.roll(block.number + _secondsBetweenActions / 15);
+
+        if (_balance != 0 && !willRevert)
+            assertEq(
+                ajAssetBalanceOf(_projectOwner),
+                PRBMath.mulDiv(_allowance, jbLibraries().MAX_FEE(), jbLibraries().MAX_FEE() + _ajSingleVaultTerminal.fee())
+            );
+
+        // Distribute the funding target ETH -> no split then beneficiary is the project owner
+        uint256 initBalance = ajAssetBalanceOf(_projectOwner);
+
+        if (_target > _balance){
+            evm.expectRevert(abi.encodeWithSignature('INADEQUATE_PAYMENT_TERMINAL_STORE_BALANCE()'));
+        } else if (_target == 0){
+            evm.expectRevert(abi.encodeWithSignature('DISTRIBUTION_AMOUNT_LIMIT_REACHED()'));
+        } else if(_target > ajAssetBalanceOf(address(_ajSingleVaultTerminal))){
+            // If the amount being withdrawn as allowance is more than the terminal has in its localBalance
+            // than the terminal will withdraw from the vault
+            evm.expectEmit(true, true, true, false);
+            emit Withdraw(address(_ajSingleVaultTerminal), address(_ajSingleVaultTerminal), address(_ajSingleVaultTerminal), 0, 0);
+        }
+
+        evm.prank(_projectOwner);
+        _ajSingleVaultTerminal.distributePayoutsOf(
+            projectId,
+            _target,
+            1, // Currency
+            address(0), //token (unused)
+            0, // Min wei out
+            'Foundry payment' // Memo
+        );
+
+        // Funds leaving the ecosystem -> fee taken
+        if (_target <= _balance && _target != 0)
+            assertEq(
+                ajAssetBalanceOf(_projectOwner),
+                initBalance +
+                PRBMath.mulDiv(_target, jbLibraries().MAX_FEE(), _ajSingleVaultTerminal.fee() + jbLibraries().MAX_FEE())
+            );
+
+        // redeem eth from the overflow by the token holder:
+        uint256 senderBalance = jbTokenStore().balanceOf(payer, projectId);
+
+        evm.prank(payer);
+        _ajSingleVaultTerminal.redeemTokensOf(
+            payer,
+            projectId,
+            senderBalance,
+            address(0), //token (unused)
+            0,
+            payable(payer),
+            'gimme my token back',
+            new bytes(0)
+        );
+
+        // verify: beneficiary should have a balance of 0 JBTokens
+        assertEq(jbTokenStore().balanceOf(payer, projectId), 0);
+    }
+
+    // Vault events
+    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
+    event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
 }

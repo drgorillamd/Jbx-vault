@@ -26,7 +26,11 @@ contract AJETHTests is AJPayoutRedemptionTerminalTests {
         terminal = IAJSingleVaultTerminal(address(_ajSingleVaultTerminalETH));
     }
 
-    function ajAsset() internal virtual override view returns (address) {
+    function ajTerminalAsset() internal virtual override view returns (address) {
+        return JBTokens.ETH;
+    }
+
+    function ajVaultAsset() internal virtual override view returns (address) {
         return address(_weth);
     }
 
