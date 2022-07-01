@@ -4,7 +4,7 @@ pragma solidity 0.8.6;
 import "./abstract/AJPayoutRedemptionTerminalTests.sol";
 import {MockERC20} from "MockERC4626/MockERC20.sol";
 import {WETH} from "solmate/tokens/WETH.sol";
-import "../AJSingleVaultTerminalETH.sol";
+import "../../AJSingleVaultTerminalETH.sol";
 import "./helpers/WETHMinter.sol";
 
 
@@ -17,7 +17,7 @@ contract AJETHTests is AJPayoutRedemptionTerminalTests {
     // ---------------------------  overrides ---------------------------- //
     //*********************************************************************//
 
-    function AJPayoutRedemptionTerminal()
+    function ajSingleVaultTerminal()
     internal
     view
     virtual

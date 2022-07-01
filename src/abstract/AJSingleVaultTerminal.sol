@@ -12,7 +12,7 @@ import "../structs/Vault.sol";
 // TODO: Add reentrency protection
 // TODO: Have withdraw/deposit check the weight of 1 wei share (as to not try and deposit/withdraw 0.5 wei share)
 abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
-    mapping(uint256 => Vault) projectVault;
+    mapping(uint256 => Vault) public projectVault;
 
     // TODO: Change required `JBOperations` permission to one specific to this action
     function setVault(
@@ -78,17 +78,22 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
                 _vault,
                 int256(_amount)
             );
+
             // Depositing more (usually) does not increase the gas cost
             // so we use this opportunity to fill up to the target amount
             if (_targetDelta > 0) {
-                // Calculate the new local balance for the project
-                _vault.state.localBalance =
-                    _vault.state.localBalance +
-                    _amount -
-                    uint256(_targetDelta);
-                // Perform the deposit and update the vault shares
-                _vault.state.shares += _deposit(_vault, uint256(_targetDelta));
-                return;
+                // Make sure we can afford atleast 1 vault share
+                // (this is only not the case if a few wei gets assigned)
+                if (_vault.impl.convertToShares(uint256(_targetDelta)) != 0){
+                    // Calculate the new local balance for the project
+                    _vault.state.localBalance =
+                        _vault.state.localBalance +
+                        _amount -
+                        uint256(_targetDelta);
+                    // Perform the deposit and update the vault shares
+                    _vault.state.shares += _deposit(_vault, uint256(_targetDelta));
+                    return;
+                }
             }
         }
 

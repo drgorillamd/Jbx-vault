@@ -12,7 +12,7 @@ contract AJERC20Tests is AJPayoutRedemptionTerminalTests {
     // ------------------------- virtual methods ------------------------- //
     //*********************************************************************//
 
-    function AJPayoutRedemptionTerminal()
+    function ajSingleVaultTerminal()
     internal
     view
     virtual

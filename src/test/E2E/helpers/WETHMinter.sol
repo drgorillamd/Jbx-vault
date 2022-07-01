@@ -3,7 +3,7 @@ pragma solidity 0.8.6;
 import "forge-std/Vm.sol";
 
 import {IMintable} from "MockERC4626/interfaces/IMintable.sol";
-import "../../interfaces/IWETH.sol";
+import "../../../interfaces/IWETH.sol";
 
 contract WETHMinter is IMintable {
     IWETH private weth;

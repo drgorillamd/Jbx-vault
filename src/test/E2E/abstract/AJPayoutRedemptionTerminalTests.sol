@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.6;
 
-import "../../AJSingleVaultTerminalERC20.sol";
+import "../../../AJSingleVaultTerminalERC20.sol";
 import "jbx/system_tests/helpers/TestBaseWorkflow.sol";
 
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IMintable} from "MockERC4626/interfaces/IMintable.sol";
 import {MockLinearGainsERC4626} from "MockERC4626/vaults/MockLinearGainsERC4626.sol";
 import {MockERC20} from "MockERC4626/MockERC20.sol";
-import "../../interfaces/IAJSingleVaultTerminal.sol";
+import "../../../interfaces/IAJSingleVaultTerminal.sol";
 
 abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
     JBController controller;
@@ -23,7 +23,7 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
     // ------------------------- virtual methods ------------------------- //
     //*********************************************************************//
 
-    function AJPayoutRedemptionTerminal()
+    function ajSingleVaultTerminal()
     internal
     virtual
     view
@@ -86,16 +86,20 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
         });
     }
 
+    function testPayRedeem() public {
+        testPayRedeemFuzz(100_000 * 1_000_000, 5 ether, 1, 1 weeks);
+    }
+
     function testPayRedeemFuzz(uint40 _LocalBalancePPM, uint128 _payAmount, uint256 _redeemAmount, uint32 _secondsBetweenPayAndRedeem) public {
         uint256 _localBalancePPMNormalised = _LocalBalancePPM / 1_000_000;
         evm.assume(_localBalancePPMNormalised > 0 && _localBalancePPMNormalised <= 1_000_000);
         evm.assume(_payAmount > 0);
         evm.assume(_redeemAmount > 0);
 
-        IAJSingleVaultTerminal _ajSingleVaultTerminal = AJPayoutRedemptionTerminal();
+        IAJSingleVaultTerminal _ajSingleVaultTerminal = ajSingleVaultTerminal();
 
         IJBPaymentTerminal[] memory _terminals = new IJBPaymentTerminal[](1);
-        _terminals[0] = AJPayoutRedemptionTerminal();
+        _terminals[0] = _ajSingleVaultTerminal;
 
         // Configure project
         uint256 projectId = controller.launchProjectFor(
@@ -179,6 +183,10 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
         assertEq(ajAssetBalanceOf(payer), _userBalanceBeforeWithdraw + overflowExpected);
     }
 
+    function testAllowance() public {
+        testAllowanceFuzz(100_000 * 1_000_000, 10 ether, 5 ether, 20 ether, 2 weeks);
+    }
+
     /**
         @notice Adapted version of 'TestERC20Terminal.testAllowanceERC20' for AJ single vaults
     */
@@ -186,14 +194,14 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
         uint256 _localBalancePPMNormalised = _LocalBalancePPM / 1_000_000;
         evm.assume(_localBalancePPMNormalised > 0 && _localBalancePPMNormalised <= 1_000_000);
 
-        IAJSingleVaultTerminal _ajSingleVaultTerminal = AJPayoutRedemptionTerminal();
+        IAJSingleVaultTerminal _ajSingleVaultTerminal = ajSingleVaultTerminal();
 
         IJBPaymentTerminal[] memory _terminals = new IJBPaymentTerminal[](1);
-        _terminals[0] = AJPayoutRedemptionTerminal();
+        _terminals[0] = _ajSingleVaultTerminal;
 
         _fundAccessConstraints.push(
             JBFundAccessConstraints({
-                terminal: AJPayoutRedemptionTerminal(),
+                terminal: _ajSingleVaultTerminal,
                 token: ajTerminalAsset(),
                 distributionLimit: _target,
                 overflowAllowance: _allowance,
