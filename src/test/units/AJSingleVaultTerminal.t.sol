@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../../AJSingleVaultTerminalERC20.sol";
 import 'forge-std/Test.sol';
 
-contract TestUnitJBV1TokenPaymentTerminal is Test {
+contract TestUnitAJSingleVaultTerminal is Test {
     using stdStorage for StdStorage;
 
     IERC20Metadata mockToken;
@@ -88,14 +88,33 @@ contract TestUnitJBV1TokenPaymentTerminal is Test {
         );
     }
 
-    function testUnitTargetLocalBalanceDelta(uint40 _terminalBalancePPM, uint200 _terminalBalance, uint200 _vaultShares, uint200 _shareConversionRate) public {
-        // Normalise so its usually below 1_000_000
-        uint256 _terminalBalancePPMNormalised = _terminalBalancePPM / 1_000_000;
-        vm.assume(_terminalBalancePPMNormalised > 0 && _terminalBalancePPMNormalised <= 1_000_000);
-        vm.assume(_shareConversionRate > 0);
+    function testUnitTargetLocalBalanceDelta(uint40 _terminalBalancePPM, uint200 _terminalBalance, uint256 _vaultShares, uint256 _shareConversionRate, int128 _change) public {
+        // Make sure the vaultShares and shareConversionRate are not so high that it overflows a uint256
+        // if _shareConversionRate is 0 it can never overflow
         unchecked{
-            vm.assume(_vaultShares * _shareConversionRate / _shareConversionRate == _vaultShares);
+            if (_shareConversionRate != 0){
+                vm.assume(_vaultShares * _shareConversionRate / _shareConversionRate == _vaultShares);
+            }
         }
+
+        // If _change is negative it has to be more than the totalWorth of the projects terminal
+        // (you can't withdraw more than you have available)
+        uint256 totalWorth = _terminalBalance + (_vaultShares * _shareConversionRate / 10**decimals);
+        if(_change <= 0){
+            // We increase it by 1, otherwise there is a chance that doing * -1 reverts
+            _change++;
+            vm.assume(-int256(totalWorth) < _change);
+        }else{
+            // Make sure the addition of totalWorth and _change won't overflow
+            unchecked{
+                uint256 total = totalWorth + uint128(_change);
+                vm.assume(total >= totalWorth && total >= uint128(_change));
+            }
+        }
+
+        // _terminalBalancePPM has to be in range 0 - 1_000_000 (0% - 100%)
+        uint256 _terminalBalancePPMNormalised = _terminalBalancePPM / 1_000_000;
+        vm.assume(_terminalBalancePPMNormalised <= 1_000_000);
 
         // Create terminal
          ajSingleVaultTerminal = new AJSingleVaultTerminalERC20(
@@ -130,23 +149,22 @@ contract TestUnitJBV1TokenPaymentTerminal is Test {
              abi.encode(_vaultShares * _shareConversionRate / 10**decimals)
          );
 
-        // Perform the call
-        int256 _result = ajSingleVaultTerminal.targetLocalBalanceDelta(projectId, 0);
+        if(_change >= 0){
+            totalWorth += uint128(_change);
+        }else{
+            totalWorth -= uint128(_change * -1);
+        }
 
-        // Verify the result
-        uint256 totalWorth = _terminalBalance + (_vaultShares * _shareConversionRate / 10**decimals);
+        // Perform the calculations to check what it should be
+        // Calculate what amount should be in the terminal
         uint256 targetBalance = totalWorth * _terminalBalancePPMNormalised / 1_000_000;
+        // Calculate the difference between the amount in the terminal right now and what it should be
+        int256 delta = int256(uint256(_terminalBalance)) + _change - int256(targetBalance);
 
-        int256 delta = int256(int200(_terminalBalance)) - int256(targetBalance);
+        // Perform the call
+        int256 _result = ajSingleVaultTerminal.targetLocalBalanceDelta(projectId, _change);
 
-
-        assertEq(_result, delta);
-
-
-
-
-
-        assert(true);
+        assertEq(delta, _result);
     }
 
 
