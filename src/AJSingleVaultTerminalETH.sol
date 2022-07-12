@@ -1,6 +1,7 @@
 pragma solidity 0.8.6;
 
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./abstract/AJSingleVaultTerminal.sol";
 import "./interfaces/IWETH.sol";
@@ -57,6 +58,7 @@ contract AJSingleVaultTerminalETH is AJSingleVaultTerminal {
         internal
         virtual
         override
+        nonReentrant()
         returns (uint256 sharesCost)
     {
         uint256 _balanceBefore = address(this).balance;
@@ -76,6 +78,7 @@ contract AJSingleVaultTerminalETH is AJSingleVaultTerminal {
         internal
         virtual
         override
+        nonReentrant()
         returns (uint256 assetsReceived)
     {
         uint256 _balanceBefore = address(this).balance;
@@ -95,6 +98,7 @@ contract AJSingleVaultTerminalETH is AJSingleVaultTerminal {
         internal
         virtual
         override
+        nonReentrant()
         returns (uint256 sharesReceived)
     {
         // Convert ETH into wETH

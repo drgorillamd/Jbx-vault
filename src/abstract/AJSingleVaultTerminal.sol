@@ -42,24 +42,39 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
             uint256 _shares = _currentVault.state.shares;
             _currentVault.state.shares = 0;
 
-            // Redeem all available shares
-            uint256 _assetsReceived = _redeem(
-                _currentVault,
-                _currentVault.state.shares
-            );
-            // Verify we received enough
-            if (_assetsReceived < _minWithdraw) {
-                // TODO: Custom error
-                revert();
-            }
 
-            // Update the assets accounting with the received assets
-            _currentVault.state.localBalance += _assetsReceived;
+
+
             // TODO: If `impl` is 0 address, `targetLocalBalancePPM` has to be 1M
             _currentVault.impl = _vault;
             _currentVault.config = _config;
         }
         // TODO: Check `_targetLocalBalanceDelta` to see if we need to deposit/withdraw
+    }
+
+    /**
+        @notice Withdraw from the vault
+    */
+    function _exitVault(Vault storage _currentVault, uint256 _minReceived) internal {
+        // Track how many share we should redeem
+        uint256 _shares = _currentVault.state.shares;
+        // Set the shares to 0
+        delete _currentVault.state.shares;
+
+        // Redeem all available shares
+        uint256 _assetsReceived = _redeem(
+            _currentVault,
+            _shares
+        );
+
+        // Verify we received enough
+        if (_assetsReceived < _minReceived) {
+            // TODO: Custom error
+            revert();
+        }
+
+        // Update the assets accounting with the received assets
+        _currentVault.state.localBalance += _assetsReceived;
     }
 
     /**

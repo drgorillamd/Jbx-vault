@@ -1,6 +1,7 @@
 pragma solidity 0.8.6;
 
 import '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./abstract/AJSingleVaultTerminal.sol";
 import "./interfaces/IWETH.sol";
@@ -56,6 +57,7 @@ contract AJSingleVaultTerminalERC20 is AJSingleVaultTerminal {
         internal
         virtual
         override
+        nonReentrant()
         returns (uint256 sharesCost)
     {
         uint256 _balanceBefore = IERC20(token).balanceOf(address(this));
@@ -73,6 +75,7 @@ contract AJSingleVaultTerminalERC20 is AJSingleVaultTerminal {
         internal
         virtual
         override
+        nonReentrant()
         returns (uint256 assetsReceived)
     {
         uint256 _balanceBefore = IERC20(token).balanceOf(address(this));
@@ -90,6 +93,7 @@ contract AJSingleVaultTerminalERC20 is AJSingleVaultTerminal {
         internal
         virtual
         override
+        nonReentrant()
         returns (uint256 sharesReceived)
     {
         // Since multiple projects funds are here we can't give unlimited access to a specific vault
