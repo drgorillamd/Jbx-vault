@@ -214,21 +214,18 @@ abstract contract AJPayoutRedemptionTerminal is
     Receives funds belonging to the specified project.
     @param _projectId The ID of the project to which the funds received belong.
     @param _amount The amount of tokens to add, as a fixed point number with the same number of decimals as this terminal. If this is an ETH terminal, this is ignored and msg.value is used instead.
-    @param _shouldRefundHeldFees A flag indicating if held fees should be refunded based on the amount being added.
     @param _memo A memo to pass along to the emitted event.
     @param _metadata Extra data to pass along to the emitted event.
   */
     function _addToBalanceOf(
         uint256 _projectId,
         uint256 _amount,
-        bool _shouldRefundHeldFees,
         string memory _memo,
         bytes memory _metadata
     ) internal virtual override {
         super._addToBalanceOf(
             _projectId,
             _amount,
-            _shouldRefundHeldFees,
             _memo,
             _metadata
         );
@@ -302,7 +299,6 @@ abstract contract AJPayoutRedemptionTerminal is
                 JBDidRedeemData memory _data = JBDidRedeemData(
                     _holder,
                     _projectId,
-                    _fundingCycle.configuration,
                     _tokenCount,
                     JBTokenAmount(token, reclaimAmount, decimals, currency),
                     _beneficiary,
