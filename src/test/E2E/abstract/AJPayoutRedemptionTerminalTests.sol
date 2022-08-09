@@ -62,11 +62,7 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
             ballot: IJBFundingCycleBallot(address(0))
         });
 
-        _metadata = JBFundingCycleMetadata({
-            global: JBGlobalFundingCycleMetadata({
-                allowSetTerminals: false,
-                allowSetController: false
-            }),
+            _metadata = JBFundingCycleMetadata({
             reservedRate: 5000, //50%
             redemptionRate: 5000, //50%
             ballotRedemptionRate: 0,
@@ -78,11 +74,13 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
             allowChangeToken: false,
             allowTerminalMigration: false,
             allowControllerMigration: false,
+            allowSetTerminals: false,
+            allowSetController: false,
             holdFees: false,
             useTotalOverflowForRedemptions: false,
             useDataSourceForPay: false,
             useDataSourceForRedeem: false,
-            dataSource: address(0)
+            dataSource: IJBFundingCycleDataSource(address(0))
         });
     }
 
