@@ -80,16 +80,16 @@ abstract contract AJPayoutRedemptionTerminal is
             uint256 _distributedAmount
         ) = store.recordDistributionFor(_projectId, _amount, _currency);
 
+        // The amount being distributed must be at least as much as was expected.
+        if (_distributedAmount < _minReturnedTokens)
+            revert INADEQUATE_DISTRIBUTION_AMOUNT();
+
         // Prepare the assets
         _reserveAssets(
             _projectId,
             _distributedAmount,
             AJReserveReason.DistributePayoutsOf
         );
-
-        // The amount being distributed must be at least as much as was expected.
-        if (_distributedAmount < _minReturnedTokens)
-            revert INADEQUATE_DISTRIBUTION_AMOUNT();
 
         // Get a reference to the project owner, which will receive tokens from paying the platform fee
         // and receive any extra distributable funds not allocated to payout splits.
@@ -375,6 +375,7 @@ abstract contract AJPayoutRedemptionTerminal is
         if (_distributedAmount < _minReturnedTokens)
             revert INADEQUATE_DISTRIBUTION_AMOUNT();
 
+        // Prepare the assets
         _reserveAssets(
             _projectId,
             _distributedAmount,
