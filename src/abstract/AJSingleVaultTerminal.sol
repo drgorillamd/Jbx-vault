@@ -9,6 +9,9 @@ import "../enums/AJReserveReason.sol";
 import "../enums/AJAssignReason.sol";
 import "../structs/Vault.sol";
 
+//custom errors
+error VALUE_RECEIVED_TOO_LOW();
+
 // TODO: Add reentrency protection
 // TODO: Have withdraw/deposit check the weight of 1 wei share (as to not try and deposit/withdraw 0.5 wei share)
 abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
@@ -70,7 +73,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         // Verify we received enough
         if (_assetsReceived < _minReceived) {
             // TODO: Custom error
-            revert();
+            revert VALUE_RECEIVED_TOO_LOW();
         }
 
         // Update the assets accounting with the received assets
