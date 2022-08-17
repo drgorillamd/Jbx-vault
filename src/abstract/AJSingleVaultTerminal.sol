@@ -76,8 +76,11 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         // Check if we need to do a deposit or withdraw to reach the target PPM
         int256 _changeAmount = _targetLocalBalanceDelta(_currentVault, 0);
         if(_changeAmount > 0){
+            _currentVault.state.localBalance += uint256(_changeAmount);
+            // TODO: Add minWithdraw check
             _currentVault.state.shares -= _withdraw(_currentVault, uint256(_changeAmount));
         }else if(_changeAmount < 0){
+            _currentVault.state.localBalance -= uint256(-_changeAmount);
             _currentVault.state.shares += _deposit(_currentVault, uint256(-_changeAmount));
         }
     }
