@@ -11,6 +11,7 @@ import "../structs/Vault.sol";
 
 //custom errors
 error VALUE_RECEIVED_TOO_LOW();
+error INVALID_CONFIG();
 
 // TODO: Add reentrency protection
 // TODO: Have withdraw/deposit check the weight of 1 wei share (as to not try and deposit/withdraw 0.5 wei share)
@@ -33,6 +34,12 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
     {
         Vault storage _currentVault = projectVault[_projectId];
 
+        // is the new _vault address is 0 making sure that targetLocalBalancePPM is the max i.e 1M
+        if (address(_vault) == address(0)) {
+            if (_config.targetLocalBalancePPM != 1_000_000) {
+                revert INVALID_CONFIG();
+            }
+        }
         if (address(_currentVault.impl) == address(0)) {
             // No current vault is set
             _currentVault.impl = _vault;
@@ -43,12 +50,8 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         } else {
             // Update the shares accounting before the redeem
             uint256 _shares = _currentVault.state.shares;
+            // TODO: Add redeem
             _currentVault.state.shares = 0;
-
-
-
-
-            // TODO: If `impl` is 0 address, `targetLocalBalancePPM` has to be 1M
             _currentVault.impl = _vault;
             _currentVault.config = _config;
         }
@@ -72,7 +75,6 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
 
         // Verify we received enough
         if (_assetsReceived < _minReceived) {
-            // TODO: Custom error
             revert VALUE_RECEIVED_TOO_LOW();
         }
 
