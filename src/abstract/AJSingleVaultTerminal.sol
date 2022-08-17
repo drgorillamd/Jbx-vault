@@ -34,12 +34,17 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
     {
         Vault storage _currentVault = projectVault[_projectId];
 
-        // is the new _vault address is 0 making sure that targetLocalBalancePPM is the max i.e 1M
-        if (address(_vault) == address(0)) {
-            if (_config.targetLocalBalancePPM != 1_000_000) {
-                revert INVALID_CONFIG();
-            }
+        // PPM can never be more than 1M, if no vault is set then targetLocalBalancePPM has to be exactly 1M
+        if(
+            _config.targetLocalBalancePPM > 1_000_000 || 
+            (
+                address(_vault) == address(0) &&
+                _config.targetLocalBalancePPM != 1_000_000
+            )
+        ){
+            revert INVALID_CONFIG();
         }
+        
         if (address(_currentVault.impl) == address(0)) {
             // No current vault is set
             _currentVault.impl = _vault;
@@ -48,14 +53,33 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
             // The implementation stays the same, the config changes
             _currentVault.config = _config;
         } else {
+            // The implementation and the config changes, we have to redeem all assets
             // Update the shares accounting before the redeem
             uint256 _shares = _currentVault.state.shares;
-            // TODO: Add redeem
             _currentVault.state.shares = 0;
+
+            // Withdraw all assets from the vault
+            // TODO: Check if we can perform a max redeem (ERC4626 can limit the max redeem)
+            uint256 _assetsReceived = _redeem(_currentVault, _shares);
+
+            // The withdraw has to return more than the required minimum
+            require(_assetsReceived >= _minWithdraw);
+
+            // Update the local balance
+            _currentVault.state.localBalance += _assetsReceived;
+
+            // Configure the new vault and config
             _currentVault.impl = _vault;
             _currentVault.config = _config;
         }
-        // TODO: Check `_targetLocalBalanceDelta` to see if we need to deposit/withdraw
+
+        // Check if we need to do a deposit or withdraw to reach the target PPM
+        int256 _changeAmount = _targetLocalBalanceDelta(_currentVault, 0);
+        if(_changeAmount > 0){
+            _currentVault.state.shares -= _withdraw(_currentVault, uint256(_changeAmount));
+        }else if(_changeAmount < 0){
+            _currentVault.state.shares += _deposit(_currentVault, uint256(-_changeAmount));
+        }
     }
 
     /**
