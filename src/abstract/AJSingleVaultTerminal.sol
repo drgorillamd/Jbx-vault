@@ -79,8 +79,13 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         int256 _changeAmount = _targetLocalBalanceDelta(_currentVault, 0);
         if (_changeAmount > 0) {
             _currentVault.state.localBalance += uint256(_changeAmount);
-            // TODO: Add minWithdraw check
-            _currentVault.state.shares -= _withdraw(_currentVault, uint256(_changeAmount));
+
+            uint256 _shareCost = _withdraw(_currentVault, uint256(_changeAmount));
+            uint256 _assetsReceived = _currentVault.impl.convertToAssets(_shareCost);
+            if (_assetsReceived < _minWithdraw) {
+              revert VALUE_RECEIVED_TOO_LOW();
+            }            
+            _currentVault.state.shares -= _shareCost;
         } else if (_changeAmount < 0) {
             _currentVault.state.localBalance -= uint256(-_changeAmount);
             _currentVault.state.shares += _deposit(_currentVault, uint256(-_changeAmount));
