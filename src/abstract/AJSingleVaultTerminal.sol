@@ -210,13 +210,15 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
 
         // If an vault is set, get the amount of assets that we have deposited
         if (address(_vault.impl) != address(0)) {
-            _assets += _vault.impl.previewRedeem(_vault.state.shares);
+            // previewRedeem calls convertToAssets internally as well so directly using convertToAssets and save gas
+            _assets += _vault.impl.convertToAssets(_vault.state.shares);
         }
         // TODO: convert to ETH(?)
     }
 
     function targetLocalBalanceDelta(uint256 _projectId, int256 _amount)
         external
+        view
         returns (int256)
     {
         Vault storage _vault = projectVault[_projectId];
@@ -225,10 +227,11 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
 
     function _targetLocalBalanceDelta(Vault storage _vault, int256 _change)
         internal
+        view
         returns (int256 delta)
     {
         // Get the amount of assets in the vault
-        // TODO: Should we use `convertToAssets` or `previewRedeem` here?
+        // previewRedeem calls convertToAssets internally as well so directly using convertToAssets and save gas
         uint256 _vaultAssets = _vault.impl.convertToAssets(_vault.state.shares);
         uint256 _totalAssets = _vault.state.localBalance + _vaultAssets;
 
