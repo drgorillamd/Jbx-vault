@@ -210,8 +210,8 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
 
         // If an vault is set, get the amount of assets that we have deposited
         if (address(_vault.impl) != address(0)) {
-            // previewRedeem calls convertToAssets internally as well so directly using convertToAssets and save gas
-            _assets += _vault.impl.convertToAssets(_vault.state.shares);
+            // previewRedeem takes into account the fee applied by the vault on redeem/withdraw
+            _assets += _vault.impl.previewRedeem(_vault.state.shares);
         }
         // TODO: convert to ETH(?)
     }
@@ -231,8 +231,8 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         returns (int256 delta)
     {
         // Get the amount of assets in the vault
-        // previewRedeem calls convertToAssets internally as well so directly using convertToAssets and save gas
-        uint256 _vaultAssets = _vault.impl.convertToAssets(_vault.state.shares);
+        // previewRedeem takes into account the fee applied by the vault on redeem/withdraw
+        uint256 _vaultAssets = _vault.impl.previewRedeem(_vault.state.shares);
         uint256 _totalAssets = _vault.state.localBalance + _vaultAssets;
 
         if (_change >= 0) {
