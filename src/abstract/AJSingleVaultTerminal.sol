@@ -78,10 +78,16 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         if (_changeAmount > 0) {
             _currentVault.state.localBalance += uint256(_changeAmount);
 
-            uint256 _shareCost = _withdraw(
-                _currentVault,
-                uint256(_changeAmount)
+            uint256 _shareCost;
+            // max withdraw check to avoid tx being reverted
+            uint256 _maxWithdrawal = _currentVault.impl.maxWithdraw(
+                address(this)
             );
+            if (uint256(_changeAmount) > _maxWithdrawal) {
+                _shareCost = _withdraw(_currentVault, _maxWithdrawal);
+            } else {
+                _shareCost = _withdraw(_currentVault, uint256(_changeAmount));
+            }
             uint256 _assetsReceived = _currentVault.impl.convertToAssets(
                 _shareCost
             );
@@ -212,6 +218,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
 
                 // Perform the withdraw
                 // This can never withdraw more than the project has since it will underflow
+                // TODO: tests revert when adding the max. withddraw check here need to debug
                 _vault.state.shares -= _withdraw(
                     _vault,
                     uint256(-_targetDelta)
