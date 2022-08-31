@@ -83,7 +83,8 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
             uint256 _maxWithdrawal = _currentVault.impl.maxWithdraw(
                 address(this)
             );
-            if (uint256(_changeAmount) > _maxWithdrawal) {
+            // max withdrawal check to avoid tx being reverted
+            if (_maxWithdrawal > 0 && uint256(_changeAmount) > _maxWithdrawal) {
                 _shareCost = _withdraw(_currentVault, _maxWithdrawal);
             } else {
                 _shareCost = _withdraw(_currentVault, uint256(_changeAmount));
@@ -99,7 +100,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
             _currentVault.state.localBalance -= uint256(-_changeAmount);
             // max deposit check to avoid tx being reverted
             uint256 _maxDeposit = _currentVault.impl.maxDeposit(address(this));
-            if (uint256(-_changeAmount) > _maxDeposit) {
+            if (_maxDeposit > 0 && uint256(-_changeAmount) > _maxDeposit) {
                 _currentVault.state.shares += _deposit(
                     _currentVault,
                     _maxDeposit
@@ -170,7 +171,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
                     // Perform the deposit and update the vault shares
                     // max deposit check to avoid tx being reverted
                     uint256 _maxDeposit = _vault.impl.maxDeposit(address(this));
-                    if (uint256(_targetDelta) > _maxDeposit) {
+                    if (_maxDeposit > 0 && uint256(_targetDelta) > _maxDeposit) {
                         _vault.state.shares += _deposit(_vault, _maxDeposit);
                     } else {
                         _vault.state.shares += _deposit(_vault, uint256(_targetDelta));
@@ -218,11 +219,13 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
 
                 // Perform the withdraw
                 // This can never withdraw more than the project has since it will underflow
-                // TODO: tests revert when adding the max. withddraw check here need to debug
-                _vault.state.shares -= _withdraw(
-                    _vault,
-                    uint256(-_targetDelta)
-                );
+                // max withdrawal check to avoid tx being reverted
+                uint256 _maxWithdrawal = _vault.impl.maxWithdraw(address(this));
+                if (_maxWithdrawal > 0 && uint256(-_targetDelta) > _maxWithdrawal) {
+                    _vault.state.shares -= _withdraw(_vault, _maxWithdrawal);
+                } else {
+                    _vault.state.shares -= _withdraw(_vault, uint256(-_targetDelta));
+                }
                 return;
             }
         }
