@@ -76,6 +76,21 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         // Check if we need to do a deposit or withdraw to reach the target PPM
         int256 _changeAmount = _targetLocalBalanceDelta(_currentVault, 0);
         if (_changeAmount > 0) {
+            _currentVault.state.localBalance -= uint256(-_changeAmount);
+            // max deposit check to avoid tx being reverted
+            uint256 _maxDeposit = _currentVault.impl.maxDeposit(address(this));
+            if (_maxDeposit > 0 && uint256(-_changeAmount) > _maxDeposit) {
+                _currentVault.state.shares += _deposit(
+                    _currentVault,
+                    _maxDeposit
+                );
+            } else {
+                _currentVault.state.shares += _deposit(
+                    _currentVault,
+                    uint256(-_changeAmount)
+                );
+            }
+        } else if (_changeAmount < 0) {
             _currentVault.state.localBalance += uint256(_changeAmount);
 
             uint256 _shareCost;
@@ -96,21 +111,6 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
                 revert VALUE_RECEIVED_TOO_LOW();
             }
             _currentVault.state.shares -= _shareCost;
-        } else if (_changeAmount < 0) {
-            _currentVault.state.localBalance -= uint256(-_changeAmount);
-            // max deposit check to avoid tx being reverted
-            uint256 _maxDeposit = _currentVault.impl.maxDeposit(address(this));
-            if (_maxDeposit > 0 && uint256(-_changeAmount) > _maxDeposit) {
-                _currentVault.state.shares += _deposit(
-                    _currentVault,
-                    _maxDeposit
-                );
-            } else {
-                _currentVault.state.shares += _deposit(
-                    _currentVault,
-                    uint256(-_changeAmount)
-                );
-            }
         }
     }
 
@@ -171,10 +171,15 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
                     // Perform the deposit and update the vault shares
                     // max deposit check to avoid tx being reverted
                     uint256 _maxDeposit = _vault.impl.maxDeposit(address(this));
-                    if (_maxDeposit > 0 && uint256(_targetDelta) > _maxDeposit) {
+                    if (
+                        _maxDeposit > 0 && uint256(_targetDelta) > _maxDeposit
+                    ) {
                         _vault.state.shares += _deposit(_vault, _maxDeposit);
                     } else {
-                        _vault.state.shares += _deposit(_vault, uint256(_targetDelta));
+                        _vault.state.shares += _deposit(
+                            _vault,
+                            uint256(_targetDelta)
+                        );
                     }
                     return;
                 }
@@ -221,10 +226,16 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
                 // This can never withdraw more than the project has since it will underflow
                 // max withdrawal check to avoid tx being reverted
                 uint256 _maxWithdrawal = _vault.impl.maxWithdraw(address(this));
-                if (_maxWithdrawal > 0 && uint256(-_targetDelta) > _maxWithdrawal) {
+                if (
+                    _maxWithdrawal > 0 &&
+                    uint256(-_targetDelta) > _maxWithdrawal
+                ) {
                     _vault.state.shares -= _withdraw(_vault, _maxWithdrawal);
                 } else {
-                    _vault.state.shares -= _withdraw(_vault, uint256(-_targetDelta));
+                    _vault.state.shares -= _withdraw(
+                        _vault,
+                        uint256(-_targetDelta)
+                    );
                 }
                 return;
             }
