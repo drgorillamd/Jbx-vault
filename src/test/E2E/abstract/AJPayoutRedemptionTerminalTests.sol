@@ -88,7 +88,7 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
         testPayRedeemFuzz(100_000 * 1_000_000, 5 ether, 1, 1 weeks);
     }
 
-    function testPayRedeemFuzz(uint40 _LocalBalancePPM, uint128 _payAmount, uint256 _redeemAmount, uint32 _secondsBetweenPayAndRedeem) public {
+    function testPayRedeemFuzz(uint40 _LocalBalancePPM, uint128 _payAmount, uint256 _redeemAmount, uint32 _secondsBetweenPayAndRedeem) public virtual {
         uint256 _localBalancePPMNormalised = _LocalBalancePPM / 1_000_000;
         evm.assume(_localBalancePPMNormalised > 0 && _localBalancePPMNormalised <= 1_000_000);
         evm.assume(_payAmount > 0);
@@ -188,7 +188,7 @@ abstract contract AJPayoutRedemptionTerminalTests is TestBaseWorkflow {
     /**
         @notice Adapted version of 'TestERC20Terminal.testAllowanceERC20' for AJ single vaults
     */
-    function testAllowanceFuzz(uint40 _LocalBalancePPM, uint232 _allowance, uint232 _target, uint96 _balance, uint32 _secondsBetweenActions) public {
+    function testAllowanceFuzz(uint40 _LocalBalancePPM, uint232 _allowance, uint232 _target, uint96 _balance, uint32 _secondsBetweenActions) public virtual {
         uint256 _localBalancePPMNormalised = _LocalBalancePPM / 1_000_000;
         evm.assume(_localBalancePPMNormalised > 0 && _localBalancePPMNormalised <= 1_000_000);
 

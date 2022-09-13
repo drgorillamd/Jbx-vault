@@ -147,7 +147,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
     ) internal virtual override {
         Vault storage _vault = projectVault[_projectId];
 
-        // We never deposit on 'Pay' or 'FeesPaid' to keep them low gas
+        // We never deposit on 'FeesPaid' to keep them low gas
         if (
             address(_vault.impl) != address(0) &&
             _reason != AJAssignReason.FeesPaid
