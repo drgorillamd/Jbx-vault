@@ -76,10 +76,10 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         // Check if we need to do a deposit or withdraw to reach the target PPM
         int256 _changeAmount = _targetLocalBalanceDelta(_currentVault, 0);
         if (_changeAmount > 0) {
-            _currentVault.state.localBalance -= uint256(-_changeAmount);
+            _currentVault.state.localBalance -= uint256(_changeAmount);
             // max deposit check to avoid tx being reverted
             uint256 _maxDeposit = _currentVault.impl.maxDeposit(address(this));
-            if (_maxDeposit > 0 && uint256(-_changeAmount) > _maxDeposit) {
+            if (_maxDeposit > 0 && uint256(_changeAmount) > _maxDeposit) {
                 _currentVault.state.shares += _deposit(
                     _currentVault,
                     _maxDeposit
@@ -91,7 +91,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
                 );
             }
         } else if (_changeAmount < 0) {
-            _currentVault.state.localBalance += uint256(_changeAmount);
+            _currentVault.state.localBalance += uint256(-_changeAmount);
 
             uint256 _shareCost;
             // max withdraw check to avoid tx being reverted
@@ -99,7 +99,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
                 address(this)
             );
             // max withdrawal check to avoid tx being reverted
-            if (_maxWithdrawal > 0 && uint256(_changeAmount) > _maxWithdrawal) {
+            if (_maxWithdrawal > 0 && uint256(-_changeAmount) > _maxWithdrawal) {
                 _shareCost = _withdraw(_currentVault, _maxWithdrawal);
             } else {
                 _shareCost = _withdraw(_currentVault, uint256(_changeAmount));
@@ -147,7 +147,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
     ) internal virtual override {
         Vault storage _vault = projectVault[_projectId];
 
-        // We never deposit on 'Pay' or 'FeesPaid' to keep them low gas
+        // We never deposit on 'FeesPaid' to keep them low gas
         if (
             address(_vault.impl) != address(0) &&
             _reason != AJAssignReason.FeesPaid
@@ -187,7 +187,6 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         }
 
         _vault.state.localBalance += _amount;
-        return;
     }
 
     /**
@@ -205,7 +204,7 @@ abstract contract AJSingleVaultTerminal is AJPayoutRedemptionTerminal {
         // Either we have to withdraw from the vault, or this is a `DistributePayoutsOf` and we do housekeeping
         if (
             address(_vault.impl) != address(0) &&
-            (_amount > _vault.state.localBalance ||
+            (_amount >= _vault.state.localBalance ||
                 _reason == AJReserveReason.DistributePayoutsOf)
         ) {
             // Withdrawing more (usually) does not increase the gas cost
