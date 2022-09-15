@@ -238,11 +238,11 @@ contract LidoJuice is IERC4626, ERC20 {
         returns (uint256 assets)
     {}
 
-    function _simulate(address _target, bytes _calldata, uint256 _msgValue) internal view returns(bytes) {
+    function _simulate(address _target, bytes _calldata, uint256 _msgValue) internal view returns(bool _success, bytes _data) {
         try this._leRevertor(_target, _calldata, _msgValue) {
-            // Shouldn't get there
+            // Shouldn't get here
         } catch(bytes memory _returnedData) {
-            return _returnedData;
+            return (_returnedData.length == 0, _returnedData);
         }
     }
 
