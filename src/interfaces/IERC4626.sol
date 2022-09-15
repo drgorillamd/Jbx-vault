@@ -48,6 +48,7 @@ interface IERC4626 is IERC20Metadata {
     /// depositing exactly `assets` of underlying tokens.
     function deposit(uint256 assets, address receiver)
         external
+        payable
         virtual
         returns (uint256 shares);
 
@@ -55,6 +56,7 @@ interface IERC4626 is IERC20Metadata {
     /// by depositing `assets` of underlying tokens.
     function mint(uint256 shares, address receiver)
         external
+        payable
         virtual
         returns (uint256 assets);
 

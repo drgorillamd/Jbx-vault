@@ -6,8 +6,8 @@ import "../interfaces/IStableSwap.sol";
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-address CURVE_POOL = 0xDC24316b9AE028F1497c275EB9192a3Ea0f67022;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+//address constant CURVE_POOL = 0xDC24316b9AE028F1497c275EB9192a3Ea0f67022;
+
 /**
  @notice
  AppleJuice terminal ERC4626 strategy: Lido stETH
@@ -26,12 +26,18 @@ contract LidoJuice is IERC4626, ERC20 {
     int128 immutable curveEthIndex;
     int128 immutable curveStEthIndex;
 
-    constructor(ILido _stETH, IStableSwap _curvePool) ERC20("LidoJuice", "AstETH") {
+    constructor(ILido _stETH, IStableSwap _curvePool)
+        ERC20("LidoJuice", "AstETH")
+    {
         stETH = _stETH;
 
         curvePool = _curvePool;
-        curveStEthIndex = _curvePool.coins(0) == address(_stETH) ? 0 : 1; // 2-assets pool
-        curveEthIndex = curveStEthIndex == 0 ? 1 : 0;
+
+        int128 _curveStEthIndex = _curvePool.coins(0) == address(_stETH)
+            ? int128(0)
+            : int128(1); // 2-assets pool
+        curveStEthIndex = _curveStEthIndex;
+        curveEthIndex = _curveStEthIndex == 0 ? int128(1) : int128(0);
     }
 
     /// @notice The address of the underlying ERC20 token used for
@@ -48,7 +54,7 @@ contract LidoJuice is IERC4626, ERC20 {
         override
         returns (uint256 _totalAssets)
     {
-        return stETH.balanceOf(address(this));
+        return IERC20(address(stETH)).balanceOf(address(this));
     }
 
     /*////////////////////////////////////////////////////////
@@ -66,7 +72,9 @@ contract LidoJuice is IERC4626, ERC20 {
         if (msg.value == 0) revert LidoJuice_zeroEth();
 
         // Compute share of the asset managed by this vault
-        shares = (msg.value * totalSupply()) / stETH.balanceOf(address(this));
+        shares =
+            (msg.value * totalSupply()) /
+            IERC20(address(stETH)).balanceOf(address(this));
 
         // TODO:Mint to external senders allowed? Or send to AppleJuiceTerminal only (and revert for other callers then)
         _mint(msg.sender, shares);
@@ -87,13 +95,13 @@ contract LidoJuice is IERC4626, ERC20 {
         returns (uint256 assets)
     {
         // Compute the eth value of the share amount wanted
-        uint256 _ethInNeeded = (shares * stETH.balanceOf(address(this))) /
-            totalSupply();
+        uint256 _ethInNeeded = (shares *
+            IERC20(address(stETH)).balanceOf(address(this))) / totalSupply();
 
         if (msg.value < _ethInNeeded)
             revert LidoJuice_insufficientEthReceived();
 
-        _mint(shares, msg.sender);
+        _mint(msg.sender, shares);
 
         uint256 _received = stETH.submit{value: msg.value}(address(this));
         if (_received != _ethInNeeded) revert LidoJuice_wrongStETHReceived();
@@ -110,7 +118,9 @@ contract LidoJuice is IERC4626, ERC20 {
         address owner
     ) external override returns (uint256 shares) {
         // This is tricky with curve (not impossible, simulate call to exchange(..), use a bit of
-        // assembly and a try-catch, but is it really worth it?)
+        // assembly and a try-catch, but is it really worth it? This would double the gas-cost of the
+        // stableswap (one reverted then one executed))
+        // Todo 1inch
     }
 
     /// @notice Redeems `shares` from `owner` and sends `assets`
@@ -120,15 +130,27 @@ contract LidoJuice is IERC4626, ERC20 {
         address receiver,
         address owner
     ) external override returns (uint256 assets) {
+        // TODO 1inch
 
-        uint256 _stEthOwned = (shares * stETH.balanceOf(address(this)) / totalSupply());
-        uint256 _ethReceivedOnCurve = curvePool.get_dy(curveStEthIndex, curveEthIndex, _stEthOwned);
-        uint256 _minReceived = _ethReceivedOnCurve * MIN_SLIPPAGE / 10000;
+        uint256 _stEthOwned = ((shares *
+            IERC20(address(stETH)).balanceOf(address(this))) / totalSupply());
+        uint256 _ethReceivedOnCurve = curvePool.get_dy(
+            curveStEthIndex,
+            curveEthIndex,
+            _stEthOwned
+        );
+        uint256 _minReceived = (_ethReceivedOnCurve * MIN_SLIPPAGE) / 10000;
 
-        _burn(shares); // Revert on insuf balance
+        _burn(msg.sender, shares);
 
         IERC20(address(stETH)).approve(address(curvePool), _stEthOwned);
-        assets = curvePool.exchange(curveStEthIndex, curveEthIndex, _stEthOwned, _minReceived, receiver);
+        assets = curvePool.exchange(
+            curveStEthIndex,
+            curveEthIndex,
+            _stEthOwned,
+            _minReceived,
+            receiver
+        );
     }
 
     /*////////////////////////////////////////////////////////
@@ -143,9 +165,7 @@ contract LidoJuice is IERC4626, ERC20 {
         view
         override
         returns (uint256 shares)
-    {
-
-    }
+    {}
 
     /// @notice The amount of assets that the vault would
     /// exchange for the amount of shares provided, in an
@@ -238,27 +258,46 @@ contract LidoJuice is IERC4626, ERC20 {
         returns (uint256 assets)
     {}
 
-    function _simulate(address _target, bytes _calldata, uint256 _msgValue) internal view returns(bool _success, bytes _data) {
+    function _simulate(
+        address _target,
+        bytes memory _calldata,
+        uint256 _msgValue
+    ) internal returns (bool _success, bytes memory _data) {
         try this._leRevertor(_target, _calldata, _msgValue) {
             // Shouldn't get here
-        } catch(bytes memory _returnedData) {
+        } catch (bytes memory _returnedData) {
             return (_returnedData.length == 0, _returnedData);
         }
     }
 
-    function _leRevertor(address _target, bytes _calldata, uint256 _msgValue) internal returns(bytes _returnedValue) {
+    function _leRevertor(
+        address _target,
+        bytes memory _calldata,
+        uint256 _msgValue
+    ) external returns (bytes memory _returnedValue) {
         assembly {
-            let returnStatus := call(gas(), _target, _msgValue, _calldata, _calldata.length, 0, 0)
-            
+            let returnStatus := call(
+                gas(),
+                _target,
+                _msgValue,
+                add(_calldata, 32), // bytes data starts after 1 bytes
+                _calldata, // first byte is the bytes length
+                0, // returnes data are handled later
+                0 // same
+            )
+
             // Call fails, return an empty byte
             if iszero(returnStatus) {
-                revert(0)
+                revert(0, 0)
             }
 
             // Call successful, copy the return data in free mem then revert with the data as reason
             let returnDataPlaceholder := mload(0x40)
             returndatacopy(returnDataPlaceholder, 0, returndatasize())
-            revert(returnDataPlaceholder, add(returnDataPlaceholder,  returndatasize()))
+            revert(
+                returnDataPlaceholder,
+                add(returnDataPlaceholder, returndatasize())
+            )
         }
     }
 }

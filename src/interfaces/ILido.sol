@@ -82,7 +82,7 @@ interface ILido {
     /**
      * @notice Returns current credentials to withdraw ETH on ETH 2.0 side after the phase 2 is launched
      */
-    function getWithdrawalCredentials() external view returns (bytes);
+    function getWithdrawalCredentials() external view returns (bytes memory);
 
     event WithdrawalCredentialsSet(bytes32 withdrawalCredentials);
 
