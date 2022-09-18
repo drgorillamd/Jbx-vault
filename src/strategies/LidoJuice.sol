@@ -1,4 +1,4 @@
-pragma solidity 0.8.6;
+pragma solidity ^0.8.16;
 
 import "../interfaces/IERC4626.sol";
 import "../interfaces/ILido.sol";
@@ -17,6 +17,12 @@ contract LidoJuice is IERC4626, ERC20 {
     error LidoJuice_zeroEth();
     error LidoJuice_wrongStETHReceived();
     error LidoJuice_insufficientEthReceived();
+
+    enum Route {
+        LIDO,
+        ONEINCH,
+        CURVE
+    }
 
     ILido immutable stETH;
     IStableSwap immutable curvePool;
@@ -79,7 +85,9 @@ contract LidoJuice is IERC4626, ERC20 {
         // TODO:Mint to external senders allowed? Or send to AppleJuiceTerminal only (and revert for other callers then)
         _mint(msg.sender, shares);
 
-        // Stake
+        // Get quote
+        Route bestQuote = _getQuote();
+
         uint256 _received = stETH.submit{value: msg.value}(address(this));
 
         // Should be 1:1
@@ -257,6 +265,21 @@ contract LidoJuice is IERC4626, ERC20 {
         override
         returns (uint256 assets)
     {}
+
+    function _getQuote() internal returns (Route _bestRoute) {
+        // stETH deposit 1:1
+        // curve
+        // uni V2
+        // uni V3 @ 1%
+        // 1inch?
+        // + wstETH: uniV3 0.05; sushi; bancor (BNT pool) + quote wsteth/eth
+
+        uint256 _quoteCurve = curvePool.get_dy(
+            curveEthIndex,
+            curveStEthIndex,
+            msg.value
+        );
+    }
 
     function _simulate(
         address _target,
