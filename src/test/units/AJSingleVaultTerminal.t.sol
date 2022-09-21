@@ -145,7 +145,7 @@ contract TestUnitAJSingleVaultTerminal is Test {
          // Mock the vault conversionRate response
          vm.mockCall(
              address(mockVault),
-             abi.encodeWithSelector(IERC4626.convertToAssets.selector, _vaultShares),
+             abi.encodeWithSelector(IERC4626.previewRedeem.selector, _vaultShares),
              abi.encode(_vaultShares * _shareConversionRate / 10**decimals)
          );
 
